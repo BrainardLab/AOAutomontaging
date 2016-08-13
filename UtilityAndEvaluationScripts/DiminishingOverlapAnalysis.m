@@ -3,8 +3,8 @@
 %Written by Min Chen (minchen1@upenn.edu)
 
 %Set Input(Raw AO Data) and Output Folders
-imageDirBase='C:\Users\dontm\Documents\Research\AdaptiveOpticsMosaic\PaperValidationExperiments\BOE_2016\Analysis\OverlapPairs';
-outDirBase='C:\Users\dontm\Documents\Research\AdaptiveOpticsMosaic\PaperValidationExperiments\BOE_2016\Analysis';
+imageDirBase=fullfile(getpref('AOAutomontaging','outputAnalysisDir'),'OverlapPairs');
+outDirBase = getpref('AOAutomontaging','outputAnalysisDir');
 
 imageFileFolders = dir(imageDirBase);
 FN=length(imageFileFolders);

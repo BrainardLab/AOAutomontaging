@@ -3,10 +3,9 @@
 %Written by Min Chen (minchen1@upenn.edu)
 
 %load manual and automated montage result folders 
-manualDirBase = 'C:\Users\dontm\Documents\Research\AdaptiveOpticsMosaic\PaperValidationExperiments\BOE_2016\Data';
-autoDirBase='C:\Users\dontm\Documents\Research\AdaptiveOpticsMosaic\PaperValidationExperiments\BOE_2016\AutoMontageResults';
-%set output folder
-outDirBase='C:\Users\dontm\Documents\Research\AdaptiveOpticsMosaic\PaperValidationExperiments\BOE_2016\Analysis';
+manualDirBase = getpref('AOAutomontaging','inputDataDir');
+autoDirBase = getpref('AOAutomontaging','outputMontageDir');
+outDirBase= getpref('AOAutomontaging','outputAnalysisDir');
 
 manualFileFolders = dir(manualDirBase);
 autoFileFolders = dir(autoDirBase);

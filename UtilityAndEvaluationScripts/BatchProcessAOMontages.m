@@ -3,14 +3,13 @@
 
 
 %load High Level Input and Output Folders
-imageDirBase = 'C:\Users\dontm\Documents\Research\AdaptiveOpticsMosaic\PaperValidationExperiments\BOE_2016\Data';
-outputDirBase='C:\Users\dontm\Documents\Research\AdaptiveOpticsMosaic\PaperValidationExperiments\BOE_2016\AutoMontageResults';
-
+imageDirBase = getpref('AOAutomontaging','inputDataDir');
+outputDirBase = getpref('AOAutomontaging','outputMontageDir');
 
 imageFileFolders = dir(imageDirBase);
 for f = 1:length(imageFileFolders)%Do for each data folder
     imageFileFolder          = imageFileFolders(f).name;
-    if strcmp(imageFileFolder,'.')||strcmp(imageFileFolder,'..')
+    if strcmp(imageFileFolder(1),'.')
         continue;
     end
     
