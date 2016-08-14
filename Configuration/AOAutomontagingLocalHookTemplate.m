@@ -1,6 +1,8 @@
 function AOAutomontaging
 % AOAutomontaging
 %
+% Local hook template, toonfigure things for working on the AOAutomontaging project.
+%
 % For use with the ToolboxToolbox.  If you copy this into your
 % ToolboxToolbox localToolboxHooks directory (by defalut,
 % ~/localToolboxHooks) and delete "LocalHooksTemplate" from the filename,
@@ -13,8 +15,6 @@ function AOAutomontaging
 %
 % You will need to edit the project location and i/o directory locations
 % to match what is true on your computer.
-%
-% Configure things for working on the IBIOColorDetect project.
 
 %% Say hello
 fprintf('Running AOAutomontaging local hook\n');
