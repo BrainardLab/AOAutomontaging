@@ -85,9 +85,10 @@ d_all = cell(MN,N);
 if strcmp(device_mode, 'aoip')
 
     %load position info from excel spreadsheet
-    [temp,temp,C] = xlsread(posFileLoc);
-
-
+    [temp,temp2,C] = xlsread(posFileLoc);
+    C(cellfun(@(x) isnumeric(x) && isnan(x), C)) = {''};
+%     C(cellfun(@isnan, C,'un',0)) = [];
+    
     %verify that the image id's line up for all modalities
     %example _0018_ref_7_
     matchexp = '_\d\d\d\d_ref_\d';
