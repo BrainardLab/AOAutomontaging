@@ -22,7 +22,7 @@ function varargout = AutoAOMontagingGUI(varargin)
 
 % Edit the above text to modify the response to help AutoAOMontagingGUI
 
-% Last Modified by GUIDE v2.5 25-Jul-2016 09:40:38
+% Last Modified by GUIDE v2.5 17-Aug-2016 02:02:20
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -69,7 +69,7 @@ handles.modalitiesInfo = {'Confocal' 'confocal';
     'Modality 4' '';
     'Modality 5' '';};
 handles.inputExt = 1;
-handles.device_mode = 'aoip';
+handles.device_mode = 'multi_modal';
 %default to .tif
 
 %add path and setup vl_feat
@@ -143,6 +143,8 @@ function imagefolder_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 handles.imgfolder_name = uigetdir;
 set(handles.selectFolderText, 'String', handles.imgfolder_name) ;
+set(handles.selectFolderText, 'TooltipString', handles.imgfolder_name) ;
+
 Allfiles = dir(fullfile(handles.imgfolder_name,'*.tif'));
 Allfiles = {Allfiles.name};
 
@@ -151,7 +153,7 @@ handles.imageFile_names =[];
 dataSummary = cell(1,1);
 dataSummary{1} = 'Input Data Summary:';
 
-if strcmp(handles.device_mode, 'aoip')
+if strcmp(handles.device_mode, 'multi_modal')
     for m = 1:size(handles.modalitiesInfo,1)
         if (~isempty(handles.modalitiesInfo{m,2}))%check it's not empty
             found = sort(Allfiles(~cellfun(@isempty, strfind(Allfiles, handles.modalitiesInfo{m,2}))));
@@ -184,7 +186,8 @@ function selectPosFile_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 [FileName,PathName] = uigetfile(fullfile(pwd,'*.xlsx'));
 handles.postionFile_name = fullfile(PathName,FileName);
-set(handles.posFileText, 'String', handles.postionFile_name) ;
+set(handles.posFileText, 'String', handles.postionFile_name);
+set(handles.posFileText, 'TooltipString', handles.postionFile_name);
 guidata(hObject, handles);
 
 % --- Executes on selection change in montageList.
@@ -310,6 +313,7 @@ function outputFolder_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 handles.outputFolder_name = uigetdir;
 set(handles.outputFolderText, 'String', handles.outputFolder_name) ;
+set(handles.outputFolderText, 'TooltipString', handles.outputFolder_name) ;
 guidata(hObject, handles);
 
 
@@ -395,13 +399,13 @@ function outputsettings_Callback(hObject, eventdata, handles)
 
 
 % --------------------------------------------------------------------
-function aoip_device_Callback(hObject, eventdata, handles)
-% hObject    handle to aoip_device (see GCBO)
+function multi_modal_device_Callback(hObject, eventdata, handles)
+% hObject    handle to multi_modal_device (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
 set(handles.canon_device, 'Checked', 'off');
-set(handles.aoip_device, 'Checked', 'on');
+set(handles.multi_modal_device, 'Checked', 'on');
 set(handles.selectPosFile, 'Enable','on');
 set(handles.inputsettings,'Enable','on');
 
@@ -410,7 +414,7 @@ handles.modalitiesInfo = {'Confocal' 'confocal';
                           'Dark Field' 'avg';
                           'Modality 4' '';
                           'Modality 5' '';};
-handles.device_mode = 'aoip';
+handles.device_mode = 'multi_modal';
 guidata(hObject, handles);
 
 % --------------------------------------------------------------------
@@ -420,7 +424,7 @@ function canon_device_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 set(handles.canon_device, 'Checked', 'on');
-set(handles.aoip_device, 'Checked', 'off');
+set(handles.multi_modal_device, 'Checked', 'off');
 set(handles.posFileText,'String','');
 set(handles.selectPosFile, 'Enable','off');
 set(handles.inputsettings,'Enable','off');

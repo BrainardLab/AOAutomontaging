@@ -47,7 +47,7 @@ for f = 1:length(imageFileFolders)%Do for each data folder
             posFileLoc=fullfile(imageDirBase,imageFileFolder,'Seed_Locs_Convert.xls');
             outputDirFull = fullfile(outputDirBase,imageFileFolder,outputDirTrans,outputDir);
             mkdir(outputDirFull);
-            AOMosiacAllMultiModal(imageDir,posFileLoc,outputDirFull,'aoip',ModalitiesSrchStrings,TransType,0,[])
+            AOMosiacAllMultiModal(imageDir,posFileLoc,outputDirFull,'multi_modal',ModalitiesSrchStrings,TransType,0,[])
         end
         
     end

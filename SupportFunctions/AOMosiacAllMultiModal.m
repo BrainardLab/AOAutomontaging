@@ -4,9 +4,9 @@ function  outNameList = AOMosiacAllMultiModal(imageDir, posFileLoc, outputDir, d
 %Inputs:
 %imageDir -- Folder location containing all input images to be montaged 
 %posFileLoc -- An excel spreadsheet file indicating the coordinate
-%              locations of each image. [See demo->AOIP for example file.]
+%              locations of each image. [See demo->Multi-Modal for example file.]
 %outputDir -- Folder location for where the montaged images will be saved
-%device_mode -- The device type used to acquire the images [aoip or canon] 
+%device_mode -- The device type used to acquire the images [Multi-Modal or Canon] 
 %ModalitiesSrchStrings -- Cell array of search strings to find each modality 
 %       Example -- ModalitiesSrchStrings = {'confocal'; 'split_det'; 'avg'};
 %TransType -- Index for the type of transformation used by the matching:
@@ -82,7 +82,7 @@ ResultsTransformToRef = zeros(3,3,N,N);
 f_all = cell(MN,N);
 d_all = cell(MN,N);
 
-if strcmp(device_mode, 'aoip')
+if strcmp(device_mode, 'multi_modal')
 
     %load position info from excel spreadsheet
     [temp,temp2,C] = xlsread(posFileLoc);

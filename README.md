@@ -13,11 +13,11 @@ Run AutoAOMontagingGUI.m in MATLAB to start the GUI.
 
 Images Folder - Selects an input images folder containing all images that will be montaged. The GUI will automatically look for all confocal, split detection, and dark field images in the folder using the substrings defined in "Input Settings" (see below). 
 
-Scaling/Position File - Selects a scaling/position Excel file that defines the nominal location of each image in the input image folder.See "..\Demos\AOIP\ExamplePositionFile.xlsx" included with the software for the correct format for the file. (This file is not needed for Canon images.)
+Scaling/Position File - Selects a scaling/position Excel file that defines the nominal location of each image in the input image folder.See "..\Demos\Multi-Modal\ExamplePositionFile.xlsx" included with the software for the correct format for the file. (This file is not needed for Canon images.)
 
 Output Folder - Selects an output folder where all the montaged images will be saved. 
 
-Montage - Begins the montaging process. The "Images Folder", "Output Folder" and "Scaling/Position File" (if AOIP) must be filled before beginning the montage.  
+Montage - Begins the montaging process. The "Images Folder", "Output Folder" and "Scaling/Position File" (if needed) must be filled before beginning the montage.  
 
 --Options Selection--
 
