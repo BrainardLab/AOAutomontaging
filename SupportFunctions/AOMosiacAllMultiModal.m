@@ -6,7 +6,7 @@ function  outNameList = AOMosiacAllMultiModal(imageDir, posFileLoc, outputDir, d
 %posFileLoc -- An excel spreadsheet file indicating the coordinate
 %              locations of each image. [See demo->Multi-Modal for example file.]
 %outputDir -- Folder location for where the montaged images will be saved
-%device_mode -- The device type used to acquire the images [Multi-Modal or Canon] 
+%device_mode -- The device type used to acquire the images ['multi_modal' or 'canon'] 
 %ModalitiesSrchStrings -- Cell array of search strings to find each modality 
 %       Example -- ModalitiesSrchStrings = {'confocal'; 'split_det'; 'avg'};
 %TransType -- Index for the type of transformation used by the matching:
