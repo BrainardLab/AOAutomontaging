@@ -46,7 +46,7 @@ for f = 1:length(imageFileFolders)%Do for each data folder
             imageDir=fullfile(imageDirBase,imageFileFolder,'De-identified Data');
             posFileLoc=fullfile(imageDirBase,imageFileFolder,'Seed_Locs_Convert.xls');
             outputDirFull = fullfile(outputDirBase,imageFileFolder,outputDirTrans,outputDir);
-            if (~exist(outputDirFull),'dir')
+            if (~exist(outputDirFull,'dir'))
                 mkdir(outputDirFull);
             end
             AOMosiacAllMultiModal(imageDir,posFileLoc,outputDirFull,'multi_modal',ModalitiesSrchStrings,TransType,0,[])
