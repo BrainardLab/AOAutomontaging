@@ -16,8 +16,10 @@
 
 1.)Run AutoAOMontagingGUI.m in Matlab 
 
-2.)Click "Images Folder" and select the "..\Demos\Canon" folder included with the software.
+2.)From the menu bar, select Preferences->Device Mode->Canon 
 
-3.)Click "Output Folder" and select an empty folder to save the results.
+3.)Click "Images Folder" and select the "..\Demos\Canon" folder included with the software.
 
-4.)Click "Montage" to begin running the montage. 
+4.)Click "Output Folder" and select an empty folder to save the results.
+
+5.)Click "Montage" to begin running the montage. 

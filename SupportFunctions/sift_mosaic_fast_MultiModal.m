@@ -1,4 +1,4 @@
-function [bestH, numOkMatches_all, numMatches_all]= sift_mosaic_fast_MultiModal(im1, im2, saveMatchesName,saveFlag,f1,d1,f2,d2,TransType)
+function [bestH, numOkMatches_all, numMatches_all]= sift_mosaic_fast_MultiModal(im1, im2, saveDir,saveFlag,f1,d1,f2,d2,TransType)
 % Matches two images using given precalculated SIFT features
 %Input:
 %im1, im2 -- Input Images to be matched 
@@ -164,7 +164,7 @@ end
 %                                                         Show matches
 % --------------------------------------------------------------------
 if(saveFlag)
-    [imageDir,name,ext] = fileparts(saveMatchesName); 
+    %[saveDir,name,ext] = fileparts(saveMatchesName); 
     
     figID=figure(1) ; clf ;
     title(sprintf('%d total tentative matches', numMatches_all)) ;
@@ -191,8 +191,8 @@ if(saveFlag)
 
         
         set(gca,'LooseInset',get(gca,'TightInset'));
-        saveMatchesName=['matches_m' num2str(m) '.bmp'];
-        saveas(figID1,fullfile(imageDir,saveMatchesName))
+        saveMatchesName=['SIFTmatches_m' num2str(m) '.bmp'];
+        saveas(figID1,fullfile(saveDir,saveMatchesName))
         
         
         figID2 = figure(1);
@@ -210,8 +210,8 @@ if(saveFlag)
         
         
         set(gca,'LooseInset',get(gca,'TightInset'));
-        saveMatchesName=['cleanMatches_m' num2str(m) '.bmp'];
-        saveas(figID2,fullfile(imageDir,saveMatchesName))
+        saveMatchesName=['RANSACMatches_m' num2str(m) '.bmp'];
+        saveas(figID2,fullfile(saveDir,saveMatchesName))
         
     end
     
@@ -260,10 +260,12 @@ for m = 1:MN
     v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
     im2_ = vl_imwbackward(im2double(im2{m}),u_,v_) ;
     
-    mass = ~isnan(im1_) + ~isnan(im2_) ;
+   % mass = ~isnan(im1_) + ~isnan(im2_) ;
     im1_(isnan(im1_)) = 0 ;
     im2_(isnan(im2_)) = 0 ;
-    mosaic = (im1_ + im2_) ./ mass ;
+    overlap= (im1_ ~= 0) & (im2_ ~= 0); 
+    im1_(overlap) = 0; %for visualization, im2 is ontop
+    mosaic = (im1_ + im2_);
     
      figID3 = figure(3) ; clf ;
      imagesc(mosaic) ; axis image off ;
@@ -272,7 +274,7 @@ for m = 1:MN
     
     set(gca,'LooseInset',get(gca,'TightInset'));
     saveMatchesName=['mosaic_m' num2str(m) '.bmp']
-    saveas(figID3,fullfile(imageDir,saveMatchesName))
+    saveas(figID3,fullfile(saveDir,saveMatchesName))
      
 end
 end
