@@ -1,7 +1,10 @@
 # AOAutomontaging
 Automontaging for AO images
 
-The enclosed software was developed for montaging adaptive optics images. 
+The enclosed software was developed for montaging adaptive optics images. Please cite the following paper when using the software in your publication:
+
+<Insert Citation>
+
 
 The code was written and tested in MATLAB version R2015b.
 

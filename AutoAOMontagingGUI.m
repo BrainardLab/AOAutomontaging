@@ -81,6 +81,7 @@ vl_setup;
 
 %set default options
 set(handles.uibuttongroup1,'selectedobject',handles.radiobutton3);
+set(handles.radiobutton4,'enable','off');
 
 % Update handles structure
 guidata(hObject, handles);
