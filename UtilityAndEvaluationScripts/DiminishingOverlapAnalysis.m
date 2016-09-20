@@ -3,7 +3,7 @@
 %Written by Min Chen (minchen1@upenn.edu)
 
 %Set Input(Raw AO Data) and Output Folders
-imageDirBase=fullfile(getpref('AOAutomontaging','outputAnalysisDir'),'OverlapPairs');
+imageDirBase=getpref('AOAutomontaging','inputOverlapAnalysisDataDir');
 outDirBase = getpref('AOAutomontaging','outputAnalysisDir');
 
 imageFileFolders = dir(imageDirBase);

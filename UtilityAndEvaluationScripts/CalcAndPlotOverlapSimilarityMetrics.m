@@ -3,7 +3,7 @@
 %Written by Min Chen (minchen1@upenn.edu)
 
 %load manual and automated montage result folders 
-manualDirBase = getpref('AOAutomontaging','inputDataDir');
+manualDirBase = getpref('AOAutomontaging','inputManualDataDir');
 autoDirBase = getpref('AOAutomontaging','outputMontageDir');
 outDirBase= getpref('AOAutomontaging','outputAnalysisDir');
 

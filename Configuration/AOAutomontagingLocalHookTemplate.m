@@ -33,13 +33,13 @@ projectPath = '/Users/Shared/Matlab/Analysis/AOAutomontaging/';
 % CS_13212_20160104_OS_Images-DONE into the top level of the input
 % directory.
 %
-% inputDataDir = 'C:\Users\dontm\Documents\Research\AdaptiveOpticsMosaic\PaperValidationExperiments\BOE_2016\Data';
-inputDataDir = '/Volumes/Users1/DropboxLab/AOSLOImageProcessing/AOAutomontagingInput';
+inputDataDir = '/Volumes/Users1/DropboxLab/AOSLOImageProcessing/AOMontagingDataSet';
+inputManualDataDir = '/Volumes/Users1/DropboxLab/AOSLOImageProcessing/AOManualMontages';
+inputOverlapAnalysisDataDir = '/Volumes/Users1/DropboxLab/AOSLOImageProcessing/OverlapAnalysisPairs';
 
 % Output of batch processing will show up here.  We make the directory for
 % you if it does not exist.
 %
-% outputMontageDir = 'C:\Users\dontm\Documents\Research\AdaptiveOpticsMosaic\PaperValidationExperiments\BOE_2016\AutoMontageResults';
 outputMontageDir = '/Volumes/Users1/DropboxLab/AOSLOImageProcessing/AOAutomontagingMontageOutput';
 
 % Analysis of montages output directory
@@ -64,6 +64,8 @@ end
 
 %% Set the preferences for the project
 setpref('AOAutomontaging','inputDataDir',inputDataDir);
+setpref('AOAutomontaging','inputManualDataDir',inputManualDataDir);
+setpref('AOAutomontaging','inputOverlapAnalysisDataDir',inputOverlapAnalysisDataDir);
 setpref('AOAutomontaging','outputMontageDir',outputMontageDir);
 setpref('AOAutomontaging','outputAnalysisDir',outputAnalysisDir);
 
