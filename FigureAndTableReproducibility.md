@@ -8,6 +8,8 @@ The software used to produce the data and images can be downloaded at:
 
 https://github.com/BrainardLab/AOAutomontaging
 
+Version 1.0.0 of the software was used to create the figures in the paper.
+
 The data used in the paper can be downloaded at:
 
 Multi-Modal AO Dataset:
@@ -24,16 +26,43 @@ https://figshare.com/s/b548a6989c840fabd832
 
 MATLAB version R2015b was used for processing the data and evaluating the results.
 
+-----Summary of Folder Structure-----
+
+The following is the folder structure you will have by the end of these experiments. Each number is the identifier for the folder, and each period represents a subfolder of the previous number. I.e. (1.1) is a sub folder of (1), while (1.1.2) is a subfolder of (1.1)
+
+(1)OverallProjectDir 
+
+(1.1)AllInputDataDir 
+
+(1.1.1)AOMontagingDataSet (Unzipped from download)
+
+(1.1.2)AOManualMontages (Unzipped from download)
+
+(1.1.3)OverlapAnalysisPairs (Unzipped from download)
+
+(1.2)outputMontageDir (Contents generated using "BatchProcessAOMontages.m")
+
+(1.3)outputAnalysisDir (Contents generated using "CalcAndPlotOverlapSimilarityMetrics.m" and "DiminishingOverlapAnalysis.m")
 
 -----Data Processing Instructions-----
 
 1.) Download the software and data listed above.
 
-<Instructions for ToolboxToolbox>
+2.) Download and install the ToolboxToolbox from:
 
-<Instructions for setting paths>
+https://github.com/ToolboxHub/
 
-Run the script: 
+3.)Copy the file ./Configuration/AOAutomontagingLocalHookTemplate.m into your ToolboxToolbox localHookFolder directory (by default,
+% /<Home>/<Matlab>/localHookFolder)
+
+4.)Edit the template file by changing the 6 system paths to match the location of the input data and output locations. (More detailed instructions are provided in the template file).
+
+5.)Rename the file to AOAutomontaging.m, by removing "LocalHookTemplate" from the name.
+
+6.) Call 'tbUse({'AOAutomontaging'})' in Matlab. Make sure there is a notification that the template file above is actually being loaded. If not then please revisit steps 2-5.
+
+
+7.)Run the script: 
 
 ./UtilityAndEvaluationScripts/BatchProcessAOMontages.m
 
