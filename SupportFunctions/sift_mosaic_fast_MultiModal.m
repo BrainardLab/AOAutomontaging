@@ -1,4 +1,4 @@
-function [bestH, numOkMatches_all, numMatches_all]= sift_mosaic_fast_MultiModal(im1, im2, saveDir,saveFlag,f1,d1,f2,d2,TransType)
+function [bestH, numOkMatches_all, numMatches_all]= sift_mosaic_fast_MultiModal(im1, im2, saveDir,saveFlag,f1,d1,f2,d2,TransType,rotLimit)
 % Matches two images using given precalculated SIFT features
 %Input:
 %im1, im2 -- Input Images to be matched 
@@ -23,6 +23,15 @@ function [bestH, numOkMatches_all, numMatches_all]= sift_mosaic_fast_MultiModal(
 % --------------------------------------------------------------------
 %                                                         SIFT matches
 % --------------------------------------------------------------------
+
+%default limit for roation is 10 degrees
+if ~exist('rotLimit','var') || isempty(rotLimit)
+  rotLimit=pi/18;
+end
+
+%saveFlag=1;
+%saveDir='C:\Users\dontm\Downloads\temp\New folder (7)';
+
 MN = size(f1,1);
 
 X1 = [];
@@ -119,7 +128,7 @@ for t = 1:5000
     ok = (du.*du + dv.*dv) < 6*6 ;
     score = sum(ok) ;
     
-    if((score > bestScore) && ((abs(TransRadians) < (pi/18))))
+    if((score > bestScore) && ((abs(TransRadians) < rotLimit)))
         bestScore = score;
         bestH = H;
         bestOK_all = ok;
@@ -181,7 +190,7 @@ if(saveFlag)
         %subplot(2,MN,m) ;
         figID1 = figure(1);
         gapSize = 25;
-        imagesc([padarray(im1{m},[dh1 gapSize],255,'post') padarray(im2{m},dh2,255,'post')]) ;
+        imagesc([padarray(im1{m}(:,:,1),[dh1 gapSize],255,'post') padarray(im2{m}(:,:,1),dh2,255,'post')]) ;
         o = size(im1{m},2) +gapSize;
         line([f1{m}(1,matches{m}(1,:));f2{m}(1,matches{m}(2,:))+o], ...
             [f1{m}(2,matches{m}(1,:));f2{m}(2,matches{m}(2,:))]) ;
@@ -196,7 +205,7 @@ if(saveFlag)
         
         
         figID2 = figure(1);
-        imagesc([padarray(im1{m},[dh1 gapSize],255,'post') padarray(im2{m},dh2,255,'post')]) ;
+        imagesc([padarray(im1{m}(:,:,1),[dh1 gapSize],255,'post') padarray(im2{m}(:,:,1),dh2,255,'post')]) ;
         o = size(im1{m},2) + gapSize;
         line([f1{m}(1,matches{m}(1,bestOK{m}));f2{m}(1,matches{m}(2,bestOK{m}))+o], ...
             [f1{m}(2,matches{m}(1,bestOK{m}));f2{m}(2,matches{m}(2,bestOK{m}))]) ;
@@ -241,7 +250,7 @@ end
 % --------------------------------------------------------------------
 %
 if(saveFlag)
-
+H = bestH;
 for m = 1:MN
     box2 = [1  size(im2{m},2) size(im2{m},2)  1 ;
         1  1           size(im2{m},1)  size(im2{m},1) ;
@@ -254,11 +263,13 @@ for m = 1:MN
     
     [u,v] = meshgrid(ur,vr) ;
     im1_ = vl_imwbackward(im2double(im1{m}),u,v) ;
+    im1_ = im1_(:,:,1);
     
     z_ = H(3,1) * u + H(3,2) * v + H(3,3);
     u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
     v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
     im2_ = vl_imwbackward(im2double(im2{m}),u_,v_) ;
+    im2_ = im2_(:,:,1);
     
    % mass = ~isnan(im1_) + ~isnan(im2_) ;
     im1_(isnan(im1_)) = 0 ;

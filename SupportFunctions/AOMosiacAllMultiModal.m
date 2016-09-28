@@ -32,6 +32,13 @@ tic
 %baseDir = 'C:\Users\Min\Dropbox\AOSLOImageProcessing\ConstructMontage\InputImages_Set1\';
 %fileID = fopen(fullfile(baseDir,'ImageInfo.txt'));
 
+
+%Algorithm Parameters
+ROICropPct = 0; %Sets a percentage crop on the boundaries of the image, where SIFT features are 
+SiftLevel = 55; %The number of levels to use in SIFT
+NumOkMatchesThresh = 10; %Threshold for number of SIFT matches needed before accepting the transformation
+matchexp = '_\d\d\d\d_ref_\d'; %String match that is expected to show up in the filename of each image. E.g. '_0018_ref_7_'
+
 %Load info from descriptor file
 % formatSpec = '%s';
 % C_text = textscan(fileID,formatSpec,9,'Delimiter','\t');
@@ -90,8 +97,6 @@ if strcmp(device_mode, 'multi_modal')
 %     C(cellfun(@isnan, C,'un',0)) = [];
     
     %verify that the image id's line up for all modalities
-    %example _0018_ref_7_
-    matchexp = '_\d\d\d\d_ref_\d';
     eyeSide = 'OS';
     for n = 1:N
         %build filename structure and check to make sure all modalities are
@@ -157,6 +162,8 @@ for m = 1:MN
     imageFilename(m,:)=imageFilename(m,I);
 end
 
+
+
 if(~AppendToExisting)
     %If new then calculate All Sift Features
     h = waitbar(0,'Calculating Sift Features (0%)');
@@ -164,16 +171,18 @@ if(~AppendToExisting)
         if(parallelFlag)
             parfor m = 1:MN
                 im = im2single(imread(char(imageFilename{m,n})));
-                [f1,d1] = vl_sift(im,'Levels',55);
-                f_all{m,n} = f1;
-                d_all{m,n} = d1;
+                [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
+                f_all{m,n} = f1_crop;
+                d_all{m,n} = d1_crop;
             end
         else
             for m = 1:MN
                 im = im2single(imread(char(imageFilename{m,n})));
-                [f1,d1] = vl_sift(im,'Levels',55);
-                f_all{m,n} = f1;
-                d_all{m,n} = d1;
+                [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
+                f_all{m,n} = f1_crop;
+                d_all{m,n} = d1_crop;
             end
         end
         waitbar(n/(N),h,strcat('Calculating Sift Features (',num2str(100*n/N,3),'%)'));
@@ -232,16 +241,18 @@ else
             if(parallelFlag)
                 parfor m = 1:MN
                     im = im2single(imread(char(imageFilename{m,n1})));
-                    [f1,d1] = vl_sift(im,'Levels',55);
-                    f_all{m,n1} = f1;
-                    d_all{m,n1} = d1;
+                    [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                    [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
+                    f_all{m,n1} = f1_crop;
+                    d_all{m,n1} = d1_crop;
                 end
             else
                 for m = 1:MN
                     im = im2single(imread(char(imageFilename{m,n1})));
-                    [f1,d1] = vl_sift(im,'Levels',55);
-                    f_all{m,n1} = f1;
-                    d_all{m,n1} = d1;
+                    [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                    [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
+                    f_all{m,n1} = f1_crop;
+                    d_all{m,n1} = d1_crop;
                 end
             end
             
@@ -328,7 +339,7 @@ while (sum(Matched) < N)
                 
                 %use best match if it provides enough viable matches or there is no
                 %more incomplete neighbors. Otherwise we go another round
-                if(bestNumOkMatches > 10 || ((bestNumOkMatches/bestNumMatches) > percentageThresh && bestNumOkMatches > 1))
+                if(bestNumOkMatches > NumOkMatchesThresh || ((bestNumOkMatches/bestNumMatches) > percentageThresh && bestNumOkMatches > 1))
                     disp(strcat('  Best match found n',int2str(bestRefIndex), ' at location (', num2str(LocXY(1,bestRefIndex)),',', ...
                         num2str(LocXY(2,bestRefIndex)),')'));
                     RelativeTransformToRef(:,:,n) = bestTransform;
@@ -353,8 +364,9 @@ while (sum(Matched) < N)
         end
     end
 end
+waitbar(sum(Matched)/N,h,strcat('Alignment Complete (100%). Writing Outputs.'));
 
-
+%find reference frames for different montage pieces
 AllRefIndex = [];
 
 for n = 1:N
@@ -386,126 +398,250 @@ for n = 1:N
     TotalTransform(:,:,n) = H;
 end
 
-outNameList = cell(NumOfRefs,MN);
+%translate discontinuous pieces of the montage relative to each other
 
-for m = 1:MN
-    for i = 1: NumOfRefs
-        %find max and min bounding box over all iamges attached to this ref
-        
-        maxX =-1000000000;
-        minX =1000000000;
-        maxY =-1000000000;
-        minY =1000000000;
-        
-        for n = 1:N
-            im = imread(char(imageFilename{m,n}));
-            H = TotalTransform(:,:,n);
+%Centers of mass for each piece
+CoMX = zeros(NumOfRefs,1);
+CoMY = zeros(NumOfRefs,1);
+
+%boundingbox for each piece
+maxXRef = -1000000000*ones(NumOfRefs,1);
+minXRef = 1000000000*ones(NumOfRefs,1);
+maxYRef = -1000000000*ones(NumOfRefs,1);
+minYRef = 1000000000*ones(NumOfRefs,1);
+Xwidth = zeros(NumOfRefs,1);
+Ywidth = zeros(NumOfRefs,1);
+
+for i = 1: NumOfRefs
+    
+    %calculate centers of mass for each piece using nominal locations
+    %We use median here to get cleaner locations
+    CoMX(i) = median(LocXY(1,RefChains{i}));    
+    CoMY(i) = median(LocXY(2,RefChains{i}));
+    
+    %calculate bounding box for each piece
+    for n = RefChains{i}
+        im = imread(char(imageFilename{1,n}));
+        H = TotalTransform(:,:,n);
+
+        %transform the 4 corners
+        box = [1  size(im,2) size(im,2)  1 ;
+            1  1           size(im,1)  size(im,1) ;
+            1  1           1            1 ] ;
+        box_ = inv(H) * box ;
+        box_(1,:) = box_(1,:) ./ box_(3,:) ;
+        box_(2,:) = box_(2,:) ./ box_(3,:) ;
+
+        maxXRef(i) = max([maxXRef(i) box_(1,:)]);
+        minXRef(i) = min([minXRef(i) box_(1,:)]);
+        maxYRef(i) = max([maxYRef(i) box_(2,:)]);
+        minYRef(i) = min([minYRef(i) box_(2,:)]);
+    end
+        Xwidth(i) = maxXRef(i)-minXRef(i);
+        Ywidth(i)= maxYRef(i)-minYRef(i);
+end
+%we want to make sure there is not two identical CoM, if there is, we push
+%it in the larger direction. 
+ee = .0001;
+checked=zeros(NumOfRefs,1);
+for s = 1:NumOfRefs
+    if(~checked(s))
+        counter = 0;%keep tracks of how many duplicates, first one can be itself, so start at zero
+        checked(s) = 1;
+        for ss = 1:NumOfRefs
+            if((CoMX(s) == CoMX(ss)) && (CoMY(s) == CoMY(ss)))
+                checked(ss) = 1;
+                if( CoMX(ss) >= CoMY(ss))%bump duplicate in the larger direction
+                    CoMX(ss)=CoMX(ss)+ee*counter;
+                else
+                    CoMY(ss)=CoMY(ss)+ee*counter;
+                end
+                counter = counter + 1;%increment duplicate count
+            end
+        end
+    end
+    
+end
+
+
+%find relative translation between pieces using centers of mass
+[refOrderX, refOrderX_I] = sort(CoMX);%find ascending order Index for each piece in X direction
+[refOrderY, refOrderY_I] = sort(CoMY,'descend');%find descending order Index for each piece in Y direction
+
+
+%find total translation for each piece
+refGlobalTransX = zeros(NumOfRefs,1);
+refGlobalTransY = zeros(NumOfRefs,1);
+
+pad=30;
+maxWidthX=Xwidth(refOrderX_I(1));
+maxWidthY=Ywidth(refOrderY_I(1));
+
+%if pieces have same nominal location in one direction, then we set the bounding box in the direction to min/max
+%of all pieces at that location, this makes a more organized picture
+%
+for i = 1:NumOfRefs %ToDo: not very efficient... but small number of pieces in general
+    ind = find(CoMX == CoMX(i));%find where location matches exactly 
+    maxXRef(ind) = max(maxXRef(ind));%set to max
+    minXRef(ind) = min(minXRef(ind));%set to min
+    
+    ind = find(CoMY == CoMY(i));%find where location matches exactly 
+    maxYRef(ind) = max(maxYRef(ind));%set to max
+    minYRef(ind) = min(minYRef(ind));%set to min
+end
+
+
+
+for s = 2:NumOfRefs %no need to translate the first one, start at 2
+
+
+    %add width and pad for all previous pieces that do not share a number 
+    %The center of each piece starts at the same location (0,0), so the width we add is
+    %max loc of the bounding of the previous image, and subtract min loc of the current image
+        if(CoMX(refOrderX_I(s)) == CoMX(refOrderX_I(s-1)))%if same location as previous, use previous translation
+            refGlobalTransX(refOrderX_I(s)) = refGlobalTransX(refOrderX_I(s-1));
             
-            %transform the 4 corners
-            box = [1  size(im,2) size(im,2)  1 ;
-                1  1           size(im,1)  size(im,1) ;
-                1  1           1            1 ] ;
-            box_ = inv(H) * box ;
-            box_(1,:) = box_(1,:) ./ box_(3,:) ;
-            box_(2,:) = box_(2,:) ./ box_(3,:) ;
-            
-            maxX = max([maxX box_(1,:)]);
-            minX = min([minX box_(1,:)]);
-            maxY = max([maxY box_(2,:)]);
-            minY = min([minY box_(2,:)]);
+        else%if different location, then use previous translation + max loc of previous location + pad - min loc of own
+            refGlobalTransX(refOrderX_I(s)) = refGlobalTransX(refOrderX_I(s-1)) ...
+                + maxXRef(refOrderX_I(s-1)) - minXRef(refOrderX_I(s)) + pad;             
         end
         
-        ur = minX:maxX;
-        vr = minY:maxY;
-        [u,v] = meshgrid(ur,vr) ;
+        if(CoMY(refOrderY_I(s)) == CoMY(refOrderY_I(s-1)))
+            refGlobalTransY(refOrderY_I(s)) = refGlobalTransY(refOrderY_I(s-1));
+        else
+            refGlobalTransY(refOrderY_I(s)) = refGlobalTransY(refOrderY_I(s-1)) ...
+                + maxYRef(refOrderY_I(s-1)) - minYRef(refOrderY_I(s)) + pad; 
+        end
+end
+
+%Now adjust each transformation according to which piece they're in
+for i = 1: NumOfRefs
+    refGlobalTrans = eye(3,3);
+    refGlobalTrans(1,3) = -refGlobalTransX(i); %these are pullback transforms, so negative of the distance you want to move
+    refGlobalTrans(2,3) = -refGlobalTransY(i); %these are pullback transforms, so negative of the distance you want to move
+    for n = RefChains{i}
+        TotalTransform(:,:,n) = TotalTransform(:,:,n)*refGlobalTrans;
+    end
+end
+
+
+%calculate global bounding box
+maxXAll =-1000000000;
+minXAll =1000000000;
+maxYAll =-1000000000;
+minYAll =1000000000;
         
+for n = 1:N
+    im = imread(char(imageFilename{1,n}));
+    H = TotalTransform(:,:,n);
+
+    %transform the 4 corners
+    box = [1  size(im,2) size(im,2)  1 ;
+        1  1           size(im,1)  size(im,1) ;
+        1  1           1            1 ] ;
+    box_ = inv(H) * box ;
+    box_(1,:) = box_(1,:) ./ box_(3,:) ;
+    box_(2,:) = box_(2,:) ./ box_(3,:) ;
+
+    maxXAll = max([maxXAll box_(1,:)]);
+    minXAll = min([minXAll box_(1,:)]);
+    maxYAll = max([maxYAll box_(2,:)]);
+    minYAll = min([minYAll box_(2,:)]);
+end
+
+%this is the image grid to output
+ur = minXAll:maxXAll;
+vr = minYAll:maxYAll;
+[u,v] = meshgrid(ur,vr) ;
+
+if(NumOfRefs == 1)
+    outNameList = cell(1,MN);%Just 1 output for each modality if only one piece
+else
+    outNameList = cell(NumOfRefs+1,MN);%Otherwise one for each piece and extra one for all the pieces combined
+end
+numWritten=0;%keeps track of how many images written to disk
+
+for m = 1:MN
+    %initialize blank combined image of all pieces for the modality
+        im =  imread(char(imageFilename{m,AllRefIndex(1)}));
+        imCombinedAll = vl_imwbackward(im2double(im),u,v);
+        imCombinedAll=imCombinedAll(:,:,1);
+        imCombinedAll(:,:,:) = 0;
+    
+    for i = 1: NumOfRefs
+        %initialize blank combined image for the modality/piece
         im =  imread(char(imageFilename{m,AllRefIndex(i)}));
         imCombined = vl_imwbackward(im2double(im),u,v);
+        imCombined = imCombined(:,:,1);
+        imCombined(:,:,:) = 0;
         
         for n = RefChains{i}
+            %read each image, and then transform
             im = imread(char(imageFilename{m,n}));
             H = TotalTransform(:,:,n);
             z_ = H(3,1) * u + H(3,2) * v + H(3,3);
             u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
             v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
             im_ = vl_imwbackward(im2double(im),u_,v_) ;
+            im_ = im_(:,:,1);
             
+            %add to combined image
             nonzero = im_>0;
             imCombined(nonzero) = im_(nonzero);
             %imCombined=max(imCombined, im_);
             %figure(i)
             %imshow(imCombined)
+            
+            %save each individually transformed image
             [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
             
-            rgba = repmat(im_,[1,1,2]);
-            rgba(:,:,2) = ~isnan(im_);
+            rgba = repmat(im_(:,:,1),[1,1,2]);
+            rgba(:,:,2) = ~isnan(im_(:,:,1));
             rgba = uint8(round(rgba*255));
             
-            %# create a tiff object
-            tob = Tiff(fullfile(outputDir,[name,'_aligned_to_ref',num2str(i),'_m',num2str(m),'.tif']),'w');
-            
-            %# you need to set Photometric before Compression
-            tob.setTag('Photometric',Tiff.Photometric.MinIsBlack)
-            tob.setTag('Compression',Tiff.Compression.LZW)
-            
-            %# tell the program that channel 4 is alpha
-            tob.setTag('ExtraSamples',Tiff.ExtraSamples.AssociatedAlpha)
-            
-            %# set additional tags (you may want to use the structure
-            %# version of this for convenience)
-            tob.setTag('ImageLength',size(im_,1));
-            tob.setTag('ImageWidth',size(im_,2));
-            tob.setTag('BitsPerSample',8);
-            tob.setTag('RowsPerStrip',16);
-            tob.setTag('PlanarConfiguration',Tiff.PlanarConfiguration.Separate);
-            tob.setTag('Software','MATLAB')
-            tob.setTag('SamplesPerPixel',2);
-            
-            %# write and close the file
-            tob.write(rgba)
-            tob.close
-            
+            saveFileName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m),'.tif'];
+            saveTif(rgba,outputDir,saveFileName);
+            numWritten = numWritten+1;
+            waitbar(numWritten/(N*MN),h,strcat('Writing Outputs (',num2str(100*numWritten/(N*MN),3),'%)'));
         end
+        
+        %add to all combined image
+        nonzero = imCombined>0;
+        imCombinedAll(nonzero) = imCombined(nonzero);
+
         
         %figure(i);clf;
         %imshow(imCombined)
-        outName = strcat('ref_',num2str(i),'_combined_m',num2str(m),'.tif');
+        %save combined image for each piece
+        if(NumOfRefs > 1)%only necessary if more than one piece
+            saveFileName = strcat('ref_',num2str(i),'_combined_m',num2str(m),'.tif');
 
+            if(AppendToExisting)
+                outNameList{i+1,m}=fullfile('Append',saveFileName);
+            else
+                outNameList{i+1,m}=saveFileName;
+            end
+
+            rgba = repmat(imCombined(:,:,1),[1,1,2]);
+            rgba(:,:,2) = ~isnan(imCombined(:,:,1));
+            rgba = uint8(round(rgba*255));
+            saveTif(rgba,outputDir,saveFileName);       
+        end
+    end
+
+        %save the combined image of all the pieces
+        saveFileName = strcat('all_ref_combined_m',num2str(m),'.tif');
         if(AppendToExisting)
-            outNameList{i,m}=fullfile('Append',outName);
+            outNameList{1,m}=fullfile('Append',saveFileName);
         else
-            outNameList{i,m}=outName;
+            outNameList{1,m}=saveFileName;
         end
         
-        rgba = repmat(imCombined,[1,1,2]);
-        rgba(:,:,2) = ~isnan(imCombined);
+        rgba = repmat(imCombinedAll(:,:,1),[1,1,2]);
+        rgba(:,:,2) = ~isnan(imCombinedAll(:,:,1));
         rgba = uint8(round(rgba*255));
-        
-        %# create a tiff object
-        tob = Tiff(fullfile(outputDir,outName),'w');
-        
-        %# you need to set Photometric before Compression
-        tob.setTag('Photometric',Tiff.Photometric.MinIsBlack)
-        tob.setTag('Compression',Tiff.Compression.LZW)
-        
-        %# tell the program that channel 4 is alpha
-        tob.setTag('ExtraSamples',Tiff.ExtraSamples.AssociatedAlpha)
-        
-        %# set additional tags (you may want to use the structure
-        %# version of this for convenience)
-        tob.setTag('ImageLength',size(im_,1));
-        tob.setTag('ImageWidth',size(im_,2));
-        tob.setTag('BitsPerSample',8);
-        tob.setTag('RowsPerStrip',16);
-        tob.setTag('PlanarConfiguration',Tiff.PlanarConfiguration.Separate);
-        tob.setTag('Software','MATLAB')
-        tob.setTag('SamplesPerPixel',2);
-        
-        %# write and close the file
-        tob.write(rgba)
-        tob.close
-        
-    end
+        saveTif(rgba,outputDir,saveFileName);
+    
 end
 
 runtime=toc
