@@ -5,10 +5,11 @@ The enclosed software was developed for montaging adaptive optics images. Please
 
 <Insert Citation>
 
+To get started, we recommend running the GUI for the software by calling "AutoAOMontagingGUI.m" in MATLAB. Once the GUI is loaded, you can follow the short demos described in "./Demos/Demo_Instructions.md" to become familiar with the software. You can also read about the features of the GUI in the manual below.
 
-The code was written and tested in MATLAB version R2015b.
+If you are interested in reproducing the results presented in our paper, please follow the instructions described in "./UtilityAndEvaluationScripts/FigureAndTableReproducibility.md"
 
-Run AutoAOMontagingGUI.m in MATLAB to start the GUI.
+The code for this software was written and tested in MATLAB version R2015b.
 
 --------GUI Manual--------
 
