@@ -1,10 +1,10 @@
-function [bestH, numOkMatches_all, numMatches_all]= sift_mosaic_fast_MultiModal(im1, im2, saveDir,saveFlag,f1,d1,f2,d2,TransType)
+function [bestH, numOkMatches_all, numMatches_all]= sift_mosaic_fast_MultiModal(im1, im2, saveDir,saveFlag,f1,d1,f2,d2,TransType,rotLimit)
 % Matches two images using given precalculated SIFT features
 %Input:
-%im1, im2 -- Input Images to be matched 
+%im1, im2 -- Input Images to be matched
 %saveMatchesName -- String name if saving the matches to a figure
 %saveFlag -- Set to 1 if you would like to generate figure showing matches
-%f1, f2 -- Vectors of SIFT feature locations locations for im1 and im2 
+%f1, f2 -- Vectors of SIFT feature locations locations for im1 and im2
 %d1, d2 -- Vectors of SIFT feature descriptors corresponding to f1 and f2
 %TransType -- Index for the type of transformation used by the matching:
 %  0 - Translation Only
@@ -14,7 +14,7 @@ function [bestH, numOkMatches_all, numMatches_all]= sift_mosaic_fast_MultiModal(
 %  4 - Rotation + Translation + Individual Scaling
 
 %Outputs:
-%bestH -- Best transformation found (in matrix form) 
+%bestH -- Best transformation found (in matrix form)
 %numOkMatches_all -- Total number of inlier matches determined by RANSAC
 %numMatches_all -- Total number of matches found
 
@@ -23,6 +23,15 @@ function [bestH, numOkMatches_all, numMatches_all]= sift_mosaic_fast_MultiModal(
 % --------------------------------------------------------------------
 %                                                         SIFT matches
 % --------------------------------------------------------------------
+
+%default limit for roation is 10 degrees
+if ~exist('rotLimit','var') || isempty(rotLimit)
+    rotLimit=pi/18;
+end
+
+%saveFlag=1;
+%saveDir='C:\Users\dontm\Downloads\temp\New folder (7)';
+
 MN = size(f1,1);
 
 X1 = [];
@@ -119,7 +128,7 @@ for t = 1:5000
     ok = (du.*du + dv.*dv) < 6*6 ;
     score = sum(ok) ;
     
-    if((score > bestScore) && ((abs(TransRadians) < (pi/18))))
+    if((score > bestScore) && ((abs(TransRadians) < rotLimit)))
         bestScore = score;
         bestH = H;
         bestOK_all = ok;
@@ -164,7 +173,7 @@ end
 %                                                         Show matches
 % --------------------------------------------------------------------
 if(saveFlag)
-    %[saveDir,name,ext] = fileparts(saveMatchesName); 
+    %[saveDir,name,ext] = fileparts(saveMatchesName);
     
     figID=figure(1) ; clf ;
     title(sprintf('%d total tentative matches', numMatches_all)) ;
@@ -181,14 +190,16 @@ if(saveFlag)
         %subplot(2,MN,m) ;
         figID1 = figure(1);
         gapSize = 25;
-        imagesc([padarray(im1{m},[dh1 gapSize],255,'post') padarray(im2{m},dh2,255,'post')]) ;
+        imOut = [padarray(im1{m}(:,:,1),[dh1 gapSize],255,'post') padarray(im2{m}(:,:,1),dh2,255,'post')];
+        imagesc(imOut);
+        caxis([min(min(min(im1{m})),min(min(im2{m}))) max(max(max(im1{m})),max(max(im2{m})))]);
         o = size(im1{m},2) +gapSize;
         line([f1{m}(1,matches{m}(1,:));f2{m}(1,matches{m}(2,:))+o], ...
             [f1{m}(2,matches{m}(1,:));f2{m}(2,matches{m}(2,:))]) ;
         title(sprintf('%d tentative matches', numMatches(m))) ;
         axis image off ;
-             colormap('gray')
-
+        colormap('gray')
+        
         
         set(gca,'LooseInset',get(gca,'TightInset'));
         saveMatchesName=['SIFTmatches_m' num2str(m) '.bmp'];
@@ -196,7 +207,9 @@ if(saveFlag)
         
         
         figID2 = figure(1);
-        imagesc([padarray(im1{m},[dh1 gapSize],255,'post') padarray(im2{m},dh2,255,'post')]) ;
+        imOut = [padarray(im1{m}(:,:,1),[dh1 gapSize],255,'post') padarray(im2{m}(:,:,1),dh2,255,'post')];
+        imagesc(imOut);
+        caxis([min(min(min(im1{m})),min(min(im2{m}))) max(max(max(im1{m})),max(max(im2{m})))]);
         o = size(im1{m},2) + gapSize;
         line([f1{m}(1,matches{m}(1,bestOK{m}));f2{m}(1,matches{m}(2,bestOK{m}))+o], ...
             [f1{m}(2,matches{m}(1,bestOK{m}));f2{m}(2,matches{m}(2,bestOK{m}))]) ;
@@ -205,8 +218,8 @@ if(saveFlag)
             100*sum(bestOK{m})/numMatches(m), ...
             numMatches(m))) ;
         axis image off ;
-             colormap('gray')
-
+        colormap('gray')
+        
         
         
         set(gca,'LooseInset',get(gca,'TightInset'));
@@ -241,40 +254,42 @@ end
 % --------------------------------------------------------------------
 %
 if(saveFlag)
-
-for m = 1:MN
-    box2 = [1  size(im2{m},2) size(im2{m},2)  1 ;
-        1  1           size(im2{m},1)  size(im2{m},1) ;
-        1  1           1            1 ] ;
-    box2_ = inv(H) * box2 ;
-    box2_(1,:) = box2_(1,:) ./ box2_(3,:) ;
-    box2_(2,:) = box2_(2,:) ./ box2_(3,:) ;
-    ur = min([1 box2_(1,:)]):max([size(im1{m},2) box2_(1,:)]) ;
-    vr = min([1 box2_(2,:)]):max([size(im1{m},1) box2_(2,:)]) ;
-    
-    [u,v] = meshgrid(ur,vr) ;
-    im1_ = vl_imwbackward(im2double(im1{m}),u,v) ;
-    
-    z_ = H(3,1) * u + H(3,2) * v + H(3,3);
-    u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
-    v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
-    im2_ = vl_imwbackward(im2double(im2{m}),u_,v_) ;
-    
-   % mass = ~isnan(im1_) + ~isnan(im2_) ;
-    im1_(isnan(im1_)) = 0 ;
-    im2_(isnan(im2_)) = 0 ;
-    overlap= (im1_ ~= 0) & (im2_ ~= 0); 
-    im1_(overlap) = 0; %for visualization, im2 is ontop
-    mosaic = (im1_ + im2_);
-    
-     figID3 = figure(3) ; clf ;
-     imagesc(mosaic) ; axis image off ;
-     colormap('gray')
-     %title('Mosaic') ;
-    
-    set(gca,'LooseInset',get(gca,'TightInset'));
-    saveMatchesName=['mosaic_m' num2str(m) '.bmp']
-    saveas(figID3,fullfile(saveDir,saveMatchesName))
-     
-end
+    H = bestH;
+    for m = 1:MN
+        box2 = [1  size(im2{m},2) size(im2{m},2)  1 ;
+            1  1           size(im2{m},1)  size(im2{m},1) ;
+            1  1           1            1 ] ;
+        box2_ = inv(H) * box2 ;
+        box2_(1,:) = box2_(1,:) ./ box2_(3,:) ;
+        box2_(2,:) = box2_(2,:) ./ box2_(3,:) ;
+        ur = min([1 box2_(1,:)]):max([size(im1{m},2) box2_(1,:)]) ;
+        vr = min([1 box2_(2,:)]):max([size(im1{m},1) box2_(2,:)]) ;
+        
+        [u,v] = meshgrid(ur,vr) ;
+        im1_ = vl_imwbackward(im2double(im1{m}),u,v) ;
+        im1_ = im1_(:,:,1);
+        
+        z_ = H(3,1) * u + H(3,2) * v + H(3,3);
+        u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
+        v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
+        im2_ = vl_imwbackward(im2double(im2{m}),u_,v_) ;
+        im2_ = im2_(:,:,1);
+        
+        % mass = ~isnan(im1_) + ~isnan(im2_) ;
+        im1_(isnan(im1_)) = 0 ;
+        im2_(isnan(im2_)) = 0 ;
+        overlap= (im1_ ~= 0) & (im2_ ~= 0);
+        im1_(overlap) = 0; %for visualization, im2 is ontop
+        mosaic = (im1_ + im2_);
+        
+        figID3 = figure(3) ; clf ;
+        imagesc(mosaic) ; axis image off ;
+        colormap('gray')
+        %title('Mosaic') ;
+        
+        set(gca,'LooseInset',get(gca,'TightInset'));
+        saveMatchesName=['mosaic_m' num2str(m) '.bmp']
+        saveas(figID3,fullfile(saveDir,saveMatchesName))
+        
+    end
 end
