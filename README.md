@@ -3,7 +3,7 @@ Automontaging for AO images
 
 The enclosed software was developed for montaging adaptive optics images. Please cite the following paper when using the software in your publication:
 
-<Insert Citation>
+M. Chen, R. F. Cooper, G. K. Han, J. Gee, D. H. Brainard, and J. I. W. Morgan, "Multi-modal automatic montaging of adaptive optics retinal images," Biomedical Optics Express, Vol. 7 (12), pp. 4899-4918, 2016.
 
 To get started, we recommend running the GUI for the software by calling "AutoAOMontagingGUI.m" in MATLAB. Once the GUI is loaded, you can follow the short demos described in "./Demos/Demo_Instructions.md" to become familiar with the software. You can also read about the features of the GUI in the manual below.
 
