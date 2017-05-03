@@ -278,6 +278,15 @@ if(saveFlag)
         % mass = ~isnan(im1_) + ~isnan(im2_) ;
         im1_(isnan(im1_)) = 0 ;
         im2_(isnan(im2_)) = 0 ;
+        
+        
+        figID4 = figure(4);
+        imshowpair(im1_,im2_) ; axis image off ;
+        set(gca,'LooseInset',get(gca,'TightInset'));
+        saveMatchesName=['compare_m' num2str(m) '.bmp'];
+        saveas(figID4,fullfile(saveDir,saveMatchesName))
+       
+        
         overlap= (im1_ ~= 0) & (im2_ ~= 0);
         im1_(overlap) = 0; %for visualization, im2 is ontop
         mosaic = (im1_ + im2_);
@@ -288,7 +297,7 @@ if(saveFlag)
         %title('Mosaic') ;
         
         set(gca,'LooseInset',get(gca,'TightInset'));
-        saveMatchesName=['mosaic_m' num2str(m) '.bmp']
+        saveMatchesName=['mosaic_m' num2str(m) '.bmp'];
         saveas(figID3,fullfile(saveDir,saveMatchesName))
         
     end
