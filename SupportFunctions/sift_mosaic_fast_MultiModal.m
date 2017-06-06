@@ -77,9 +77,11 @@ clear H score ok ;
 bestScore = -1;
 bestH = eye(3,3);
 bestOK_all = zeros(1,size(X1,2));
+allIndex = 1:numMatches_all;%list of all the indexs for the matches
 for t = 1:5000
     % estimate model
-    subset = vl_colsubset(1:numMatches_all, 3) ;
+    subset = randsample(allIndex,3);
+    %subset = vl_colsubset(1:numMatches_all, 3) ;
     
     H = eye(3,3);
     TransRadians = 0;
