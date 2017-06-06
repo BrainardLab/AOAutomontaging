@@ -39,7 +39,7 @@ X2 = [];
 matches = cell(MN,1);
 numMatches = zeros(MN,1);
 for m = 1:MN
-    [matches_m, scores] = vl_ubcmatch(d1{m},d2{m}) ;
+    [matches_m, scores] = vl_ubcmatch_fast(d1{m},d2{m}) ;
     X1_m = f1{m}(1:2,matches_m(1,:)) ;
     X2_m = f2{m}(1:2,matches_m(2,:)) ;
     %check for duplicate matches

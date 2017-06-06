@@ -51,25 +51,50 @@ if(isnan(LocXY(1)) || isnan(LocXY(2)))
         LocXY = [0 0]';
     end
     
-    for i = 1:LN
-
-        if(LN == 2 && i == 1)
-            lastNum=lettersLoc(2)-1;
-        else
-            lastNum = N; 
+    if(lettersLoc(1) == 1)%Letter infront format
+        for i = 1:LN
+            
+            if(LN == 2 && i == 1)
+                lastNum=lettersLoc(2)-1;
+            else
+                lastNum = N;
+            end
+            
+            switch upper(inputString(lettersLoc(i)))
+                case 'T'
+                    LocXY(1)=EyeFlip*str2double(inputString(lettersLoc(i)+1:lastNum));
+                case 'N'
+                    LocXY(1)=-EyeFlip*str2double(inputString(lettersLoc(i)+1:lastNum));
+                case 'S'
+                    LocXY(2)=str2double(inputString(lettersLoc(i)+1:lastNum));
+                case 'I'
+                    LocXY(2)=-str2double(inputString(lettersLoc(i)+1:lastNum));
+            end
         end
-        
-        switch upper(inputString(lettersLoc(i)))
-            case 'T'
-                LocXY(1)=EyeFlip*str2double(inputString(lettersLoc(i)+1:lastNum));
-            case 'N'
-                 LocXY(1)=-EyeFlip*str2double(inputString(lettersLoc(i)+1:lastNum));
-            case 'S'
-                 LocXY(2)=str2double(inputString(lettersLoc(i)+1:lastNum));
-            case 'I'
-                 LocXY(2)=-str2double(inputString(lettersLoc(i)+1:lastNum));
+    elseif(lettersLoc(LN) == N)%Letter Behind Format
+        for i = 1:LN
+            
+            if(LN == 2 && i == 2)
+                firstNum=lettersLoc(1)+1;
+            else
+                firstNum = 1;
+            end
+            
+            switch upper(inputString(lettersLoc(i)))
+                case 'T'
+                    LocXY(1)=EyeFlip*str2double(inputString(firstNum:(lettersLoc(i)-1)));
+                case 'N'
+                    LocXY(1)=-EyeFlip*str2double(inputString(firstNum:(lettersLoc(i)-1)));
+                case 'S'
+                    LocXY(2)=str2double(inputString(firstNum:(lettersLoc(i)-1)));
+                case 'I'
+                    LocXY(2)=-str2double(inputString(firstNum:(lettersLoc(i)-1)));
+            end
         end
     end
+    
+    
+    
 end
 
 
