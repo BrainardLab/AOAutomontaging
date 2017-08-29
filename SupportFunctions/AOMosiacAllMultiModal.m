@@ -93,10 +93,12 @@ if strcmp(device_mode, 'multi_modal')
 
     %load position info from excel spreadsheet
     [temp,temp2,C] = xlsread(posFileLoc);
-    C(cellfun(@(x) isnumeric(x) && isnan(x), C)) = {''};
-%     C(cellfun(@isnan, C,'un',0)) = [];
-    
+    C(cellfun(@(x) any(isnan(x)), C)) = {''};
+    C = cellfun(@num2str, C,'UniformOutput',false); % First make them all strings.
     % Then convert back to a number, before adding the trappings of our
+    % file ids.
+    C(:,1) = cellfun(@(x) ['_' num2str( str2double(x),'%04.0f') '_'], C(:,1),'UniformOutput',false);
+    asdas
     %verify that the image id's line up for all modalities
     eyeSide = 'OS';
     for n = 1:N
@@ -118,12 +120,13 @@ if strcmp(device_mode, 'multi_modal')
 
             if(strcmpi(C{i,1},'eye'))
                 eyeSide = C{i,2};
-            end
-
+            end          
+            
             if (~isempty(strfind(inData{1,n}, C{i,1})))
 
                 %first try looking at coordinate grid
                 if(size(C,2) >= 3)
+
                     Loc = strsplit(C{i,3},',');
                     if(size(Loc,2) == 2)
                         LocXY(1,n) = str2double(strtrim(Loc{1}));
