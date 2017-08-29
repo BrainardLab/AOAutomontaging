@@ -96,6 +96,7 @@ if strcmp(device_mode, 'multi_modal')
     C(cellfun(@(x) isnumeric(x) && isnan(x), C)) = {''};
 %     C(cellfun(@isnan, C,'un',0)) = [];
     
+    % Then convert back to a number, before adding the trappings of our
     %verify that the image id's line up for all modalities
     eyeSide = 'OS';
     for n = 1:N
