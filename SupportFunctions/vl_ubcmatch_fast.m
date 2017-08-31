@@ -1,13 +1,20 @@
 function [matches, scores] = vl_ubcmatch_fast(d1,d2)
 %Faster implementation of the vl_ubcmatch function from vl_feat
 
+index1 = 1:size(d1,2);
 thresh = 1.5;%default threshold for removing ambiguous matches 
 
-d1_single = single(d1);
-d2_single = single(d2);
+d1 = single(d1);
+d2 = single(d2);
 
 %calculate all pair-wise distances
-dist_all = bsxfun(@plus,dot(d1_single,d1_single,1)',dot(d2_single,d2_single,1))-2*(d1_single'*d2_single);
+
+dist_all = pdist2(d1',d2','squaredeuclidean','Smallest',2);
+
+best=dist_all(:,1);
+secondbest=dist_all(:,2);
+
+dist_all = bsxfun(@plus,dot(d1,d1,1)',dot(d2,d2,1))-2*(d1'*d2);
 
 %find best matches
 [best,index2] = min(dist_all,[],2);
@@ -20,7 +27,6 @@ dist_all(sub2ind(size(dist_all),(1:length(index2))',index2))= inf;
 valid = (best*thresh < secondbest);
 
 %output results
-index1 = 1:size(d1,2);
 matches = [index1(valid); index2(valid)'];
 scores = best(valid)';
 

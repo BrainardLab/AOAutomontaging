@@ -74,6 +74,8 @@ N = size(inData,2);
 
 
 %initialize all variables
+pixelScale = ones(1,N); % Stores the relative size of our images
+ID = cell(1,N); 
 LocXY = nan(2,N);%set NaN to start
 RelativeTransformToRef = zeros(3,3,N);%stores relative transform between matched pairs
 imageFilename = cell(MN,N);%stores all filenames
@@ -121,8 +123,13 @@ if strcmp(device_mode, 'multi_modal')
 
             if (~isempty(strfind(inData{1,n}, C{i,1})))
 
+                if(size(C,2) >= 4)
+                    pixelScale(n) = str2double(strtrim(C{i,4}));
+                end
+                
                 %first try looking at coordinate grid
                 if(size(C,2) >= 3)
+                    ID{n} = C{i,2};
                     Loc = strsplit(C{i,3},',');
                     if(size(Loc,2) == 2)
                         LocXY(1,n) = str2double(strtrim(Loc{1}));
@@ -154,9 +161,13 @@ elseif strcmp(device_mode, 'canon')
     end
 end
 
+pixelScale = max(pixelScale)./pixelScale;
+
 %sort using LocXY
 [sortLocXY I] = sortrows(abs(LocXY)',[1,2]);
 LocXY=LocXY(:,I);
+ID = ID(I);
+pixelScale= pixelScale(I);
 
 for m = 1:MN
     imageFilename(m,:)=imageFilename(m,I);
@@ -170,7 +181,7 @@ if(~AppendToExisting)
     for n=1:N
         if(parallelFlag)
             parfor m = 1:MN
-                im = im2single(imread(char(imageFilename{m,n})));
+                im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale(n),'bilinear');
                 [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                 f_all{m,n} = f1_crop;
@@ -178,7 +189,7 @@ if(~AppendToExisting)
             end
         else
             for m = 1:MN
-                im = im2single(imread(char(imageFilename{m,n})));
+                im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale(n),'bilinear');
                 [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                 f_all{m,n} = f1_crop;
@@ -240,7 +251,7 @@ else
         else%if not calculate sift features
             if(parallelFlag)
                 parfor m = 1:MN
-                    im = im2single(imread(char(imageFilename{m,n1})));
+                    im = imresize( im2single(imread(char(imageFilename{m,n1}))), pixelScale(n),'bilinear' );
                     [f1,d1] = vl_sift(im,'Levels',SiftLevel);
                     [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                     f_all{m,n1} = f1_crop;
@@ -248,7 +259,7 @@ else
                 end
             else
                 for m = 1:MN
-                    im = im2single(imread(char(imageFilename{m,n1})));
+                    im = imresize( im2single(imread(char(imageFilename{m,n1}))), pixelScale(n),'bilinear' );
                     [f1,d1] = vl_sift(im,'Levels',SiftLevel);
                     [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                     f_all{m,n1} = f1_crop;
@@ -298,6 +309,7 @@ while (sum(Matched) < N)
                 %reset variables
                 bestNumOkMatches = 0;%Set to Min
                 bestNumMatches = 1000000;%Set to Max
+                
                 for refIndex=1:N % look at all possible references
                     CurrentDistToRef = sum(abs(LocXY(:,refIndex) - LocXY(:,n)));
                     if(CurrentDistToRef <= searchLevel && refIndex ~= n)%Check reference is within one distance to target
@@ -310,8 +322,8 @@ while (sum(Matched) < N)
                                 refImg = cell(MN,1);
                                 currentImg= cell(MN,1);
                                 for m= 1:MN
-                                    refImg{m} = imread(char(imageFilename{m,refIndex}));
-                                    currentImg{m} = imread(char(imageFilename{m,n}));
+                                    refImg{m} = imresize( imread(char(imageFilename{m,refIndex})), pixelScale(refIndex),'bilinear' );
+                                    currentImg{m} = imresize( imread(char(imageFilename{m,n})), pixelScale(n),'bilinear' );
                                 end
                                 saveMatchesName = strcat('Matches_n',num2str(n),'_(', num2str(LocXY(1,n)),',', ...
                                     num2str(LocXY(2,n)),')','_to_','n',num2str(refIndex),'_(', num2str(LocXY(1,refIndex)),...
@@ -421,7 +433,7 @@ for i = 1: NumOfRefs
     
     %calculate bounding box for each piece
     for n = RefChains{i}
-        im = imread(char(imageFilename{1,n}));
+        im = imresize( imread(char(imageFilename{1,n})), pixelScale(n),'nearest' ); % we don't care what they look like, only how big they are
         H = TotalTransform(:,:,n);
 
         %transform the 4 corners
@@ -532,7 +544,7 @@ maxYAll =-1000000000;
 minYAll =1000000000;
         
 for n = 1:N
-    im = imread(char(imageFilename{1,n}));
+    im = imresize( imread(char(imageFilename{1,n})), pixelScale(n),'nearest'); % We don't care what they look like
     H = TotalTransform(:,:,n);
 
     %transform the 4 corners
@@ -560,6 +572,128 @@ else
     outNameList = cell(NumOfRefs+1,MN);%Otherwise one for each piece and extra one for all the pieces combined
 end
 numWritten=0;%keeps track of how many images written to disk
+
+fovlist = unique(pixelScale);
+fovlist = cellfun(@num2str, num2cell(round(fovlist,2)),'UniformOutput',false);
+
+
+%% Determine the dominant direction of each shifted image
+
+group_directions = cell(NumOfRefs,1);
+for i = 1: NumOfRefs
+    for n = RefChains{i}
+
+        % If we had 3 columns and we're not using the canon, then we can determine which should go in the
+        % "fovea" bin.
+        if ~strcmp(device_mode, 'canon') && (size(C,2) >= 3)
+            if any(strcmpi(strtrim(ID{n}), {'TRC','TR','MTE','MT','TM','TLC','TL',...
+                                        'MRE','MR','C','CENTER','MLE','ML'...
+                                        'BRC','BR','MBE','MB','BM','BLC','BL',}))
+                group_directions{n} = 'Fovea';
+                continue;
+            end
+        end
+        
+        H = TotalTransform(:,:,n);
+        
+        [greaterdist ind] = max( abs(H(1:2,3)) );
+
+        if ind==1
+            if sign(greaterdist) == 1
+                if strcmpi(eyeSide,'os')
+                    group_directions{n} = 'Temporal';
+                elseif strcmpi(eyeSide,'od')
+                    group_directions{n} = 'Nasal';
+
+                end
+            else
+                if strcmpi(eyeSide,'os')
+                    group_directions{n} = 'Nasal';
+                elseif strcmpi(eyeSide,'od')
+                    group_directions{n} = 'Temporal';
+                end
+            end
+        else
+            if sign(greaterdist) == 1
+                group_directions{n} = 'Superior';
+            else
+                group_directions{n} = 'Inferior';
+            end
+        end
+    end
+end
+
+unique_directions = unique(group_directions);
+
+canvas_size = size(u);
+
+psconfig( 'pixels', 'pixels', 10, 'no' );
+psnewdoc( canvas_size(2), canvas_size(1), 72, ['tmp.psd'], 'grayscale');
+
+% The sorting goes FOV->Modality->Direction
+for f=1:length(fovlist)
+    make_Photoshop_group( fovlist{f} );
+    for m=1: MN
+
+        make_Photoshop_group( strrep(ModalitiesSrchStrings{m},'_','') );
+        add_to_Photoshop_group( fovlist{f}, 0 );
+
+        for k=1: length(unique_directions)                        
+            if ~isempty(unique_directions{k})
+                make_Photoshop_group( unique_directions{k} );
+                add_to_Photoshop_group( strrep(ModalitiesSrchStrings{m},'_',''), 0);
+            end
+        end
+        setActiveLayer(fovlist{f}, 1);
+    end
+    % Make the active layer the next FOV
+    setActiveLayer(fovlist{f}, 1);
+end
+
+
+for i = 1: NumOfRefs
+    for n = RefChains{i}
+        loadednames={};
+        for m=1: MN
+            %Read each image, and then transform
+            im = imresize( imread(char(imageFilename{m,n})),pixelScale(n) ); % They need to be pretty for output! Keep it bicubic
+            H = TotalTransform(:,:,n);
+            z_ = H(3,1) * u + H(3,2) * v + H(3,3);
+            u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
+            v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
+            im_ = vl_imwbackward(im2double(im),u_,v_) ;
+            im_ = im_(:,:,1);
+
+            [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
+
+            loadednames{m} = name;
+
+            rgba = repmat(im_(:,:,1),[1,1,2]);
+            rgba(:,:,2) = ~isnan(im_(:,:,1));
+            rgba = uint8(round(rgba*255));
+
+            saveName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m)];
+            psnewlayer(saveName);
+
+            pssetpixels(rgba(:,:,2),16);
+            pssetpixels(rgba(:,:,1), 'undefined');
+
+            add_to_Photoshop_group(num2str(pixelScale(n),'%0.2f'),1) % FOV
+            add_to_Photoshop_group(ModalitiesSrchStrings{m},0) %Modality
+            add_to_Photoshop_group(group_directions{n},0) % Direction
+
+            numWritten = numWritten+1;
+            waitbar(numWritten/(N*MN),h,strcat('Writing to Photoshop (',num2str(100*numWritten/(N*MN),3),'%)'));
+        end
+        % Link the layers we just imported
+        link_Photoshop_layers(loadednames);
+    end
+end
+
+
+
+
+%%
 
 for m = 1:MN
     %initialize blank combined image of all pieces for the modality
@@ -601,6 +735,7 @@ for m = 1:MN
             
             saveFileName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m),'.tif'];
             saveTif(rgba,outputDir,saveFileName);
+            
             numWritten = numWritten+1;
             waitbar(numWritten/(N*MN),h,strcat('Writing Outputs (',num2str(100*numWritten/(N*MN),3),'%)'));
         end
