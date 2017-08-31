@@ -22,7 +22,7 @@ function varargout = AutoAOMontagingGUI(varargin)
 
 % Edit the above text to modify the response to help AutoAOMontagingGUI
 
-% Last Modified by GUIDE v2.5 17-Aug-2016 02:02:20
+% Last Modified by GUIDE v2.5 31-Aug-2017 14:05:51
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -78,6 +78,13 @@ currentFile = mfilename('fullpath');
 genpath(fullfile(currentFileLoc,'SupportFunctions'));
 addpath(genpath(fullfile(currentFileLoc,'SupportFunctions')));
 vl_setup;
+
+% If we've set up photoshop, then enable and check the export to photoshop
+% buttons.
+if exist('psnewdoc')
+    set(handles.pshop_cbox,'Enable','on');
+    set(handles.pshop_cbox,'Value',1.0);    
+end
 
 %set default options
 set(handles.uibuttongroup1,'selectedobject',handles.radiobutton3);
@@ -275,7 +282,7 @@ tic
 handles.combinedFile_names = AOMosiacAllMultiModal(handles.imgfolder_name, handles.postionFile_name, ...
                                                    handles.outputFolder_name, handles.device_mode, ...
                                                    handles.modalitiesInfo(:,2), TransType,AppendToExisting, ...
-                                                   MontageSave);
+                                                   MontageSave, get(handles.pshop_cbox,'Value') );
 toc
 
 if(~isempty(handles.combinedFile_names))
@@ -433,3 +440,12 @@ set(handles.inputsettings,'Enable','off');
 handles.modalitiesInfo = {'Canon confocal','206-'};
 handles.device_mode = 'canon';
 guidata(hObject, handles);
+
+
+% --- Executes on button press in pshop_cbox.
+function pshop_cbox_Callback(hObject, eventdata, handles)
+% hObject    handle to pshop_cbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of pshop_cbox

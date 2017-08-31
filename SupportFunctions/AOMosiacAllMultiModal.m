@@ -1,4 +1,4 @@
-function  outNameList = AOMosiacAllMultiModal(imageDir, posFileLoc, outputDir, device_mode, ModalitiesSrchStrings,TransType,AppendToExisting,MontageSave)
+function  outNameList = AOMosiacAllMultiModal(imageDir, posFileLoc, outputDir, device_mode, ModalitiesSrchStrings,TransType,AppendToExisting,MontageSave,export_to_pshop)
 %Main AO Montaging Function that creates a full montage from an input
 %directory with images and nominal coordinate location
 %Inputs:
@@ -100,7 +100,7 @@ if strcmp(device_mode, 'multi_modal')
     % Then convert back to a number, before adding the trappings of our
     % file ids.
     C(:,1) = cellfun(@(x) ['_' num2str( str2double(x),'%04.0f') '_'], C(:,1),'UniformOutput',false);
-    asdas
+    
     %verify that the image id's line up for all modalities
     eyeSide = 'OS';
     for n = 1:N
@@ -132,11 +132,7 @@ if strcmp(device_mode, 'multi_modal')
                 
                 %first try looking at coordinate grid
                 if(size(C,2) >= 3)
-<<<<<<< HEAD
                     ID{n} = C{i,2};
-=======
-
->>>>>>> 281ccc14d28d2d4427359de4d0d24068b412bcb8
                     Loc = strsplit(C{i,3},',');
                     if(size(Loc,2) == 2)
                         LocXY(1,n) = str2double(strtrim(Loc{1}));
@@ -581,214 +577,215 @@ end
 numWritten=0;%keeps track of how many images written to disk
 
 fovlist = unique(pixelScale);
-fovlist = cellfun(@num2str, num2cell(round(fovlist,2)),'UniformOutput',false);
+fovlist = cellfun(@(n) num2str(n,'%0.2f'), num2cell(round(fovlist,2)),'UniformOutput',false);
 
-
-%% Determine the dominant direction of each shifted image
-
-group_directions = cell(NumOfRefs,1);
-for i = 1: NumOfRefs
-    for n = RefChains{i}
-
-        % If we had 3 columns and we're not using the canon, then we can determine which should go in the
-        % "fovea" bin.
-        if ~strcmp(device_mode, 'canon') && (size(C,2) >= 3)
-            if any(strcmpi(strtrim(ID{n}), {'TRC','TR','MTE','MT','TM','TLC','TL',...
-                                        'MRE','MR','C','CENTER','MLE','ML'...
-                                        'BRC','BR','MBE','MB','BM','BLC','BL',}))
-                group_directions{n} = 'Fovea';
-                continue;
-            end
-        end
-        
-        H = TotalTransform(:,:,n);
-        
-        [greaterdist ind] = max( abs(H(1:2,3)) );
-
-        if ind==1
-            if sign(greaterdist) == 1
-                if strcmpi(eyeSide,'os')
-                    group_directions{n} = 'Temporal';
-                elseif strcmpi(eyeSide,'od')
-                    group_directions{n} = 'Nasal';
-
-                end
-            else
-                if strcmpi(eyeSide,'os')
-                    group_directions{n} = 'Nasal';
-                elseif strcmpi(eyeSide,'od')
-                    group_directions{n} = 'Temporal';
-                end
-            end
-        else
-            if sign(greaterdist) == 1
-                group_directions{n} = 'Superior';
-            else
-                group_directions{n} = 'Inferior';
-            end
-        end
-    end
-end
-
-unique_directions = unique(group_directions);
-
-canvas_size = size(u);
-
-psconfig( 'pixels', 'pixels', 10, 'no' );
-psnewdoc( canvas_size(2), canvas_size(1), 72, ['tmp.psd'], 'grayscale');
-
-% The sorting goes FOV->Modality->Direction
-for f=1:length(fovlist)
-    make_Photoshop_group( fovlist{f} );
-    for m=1: MN
-
-        make_Photoshop_group( strrep(ModalitiesSrchStrings{m},'_','') );
-        add_to_Photoshop_group( fovlist{f}, 0 );
-
-        for k=1: length(unique_directions)                        
-            if ~isempty(unique_directions{k})
-                make_Photoshop_group( unique_directions{k} );
-                add_to_Photoshop_group( strrep(ModalitiesSrchStrings{m},'_',''), 0);
-            end
-        end
-        setActiveLayer(fovlist{f}, 1);
-    end
-    % Make the active layer the next FOV
-    setActiveLayer(fovlist{f}, 1);
-end
-
-
-for i = 1: NumOfRefs
-    for n = RefChains{i}
-        loadednames={};
-        for m=1: MN
-            %Read each image, and then transform
-            im = imresize( imread(char(imageFilename{m,n})),pixelScale(n) ); % They need to be pretty for output! Keep it bicubic
-            H = TotalTransform(:,:,n);
-            z_ = H(3,1) * u + H(3,2) * v + H(3,3);
-            u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
-            v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
-            im_ = vl_imwbackward(im2double(im),u_,v_) ;
-            im_ = im_(:,:,1);
-
-            [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
-
-            loadednames{m} = name;
-
-            rgba = repmat(im_(:,:,1),[1,1,2]);
-            rgba(:,:,2) = ~isnan(im_(:,:,1));
-            rgba = uint8(round(rgba*255));
-
-            saveName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m)];
-            psnewlayer(saveName);
-
-            pssetpixels(rgba(:,:,2),16);
-            pssetpixels(rgba(:,:,1), 'undefined');
-
-            add_to_Photoshop_group(num2str(pixelScale(n),'%0.2f'),1) % FOV
-            add_to_Photoshop_group(ModalitiesSrchStrings{m},0) %Modality
-            add_to_Photoshop_group(group_directions{n},0) % Direction
-
-            numWritten = numWritten+1;
-            waitbar(numWritten/(N*MN),h,strcat('Writing to Photoshop (',num2str(100*numWritten/(N*MN),3),'%)'));
-        end
-        % Link the layers we just imported
-        link_Photoshop_layers(loadednames);
-    end
-end
-
-
-
-
-%%
-
-for m = 1:MN
-    %initialize blank combined image of all pieces for the modality
-        im =  imread(char(imageFilename{m,AllRefIndex(1)}));
-        imCombinedAll = vl_imwbackward(im2double(im),u,v);
-        imCombinedAll=imCombinedAll(:,:,1);
-        imCombinedAll(:,:,:) = 0;
-    
-    for i = 1: NumOfRefs
-        %initialize blank combined image for the modality/piece
-        im =  imread(char(imageFilename{m,AllRefIndex(i)}));
-        imCombined = vl_imwbackward(im2double(im),u,v);
-        imCombined = imCombined(:,:,1);
-        imCombined(:,:,:) = 0;
-        
-        for n = RefChains{i}
-            %read each image, and then transform
-            im = imread(char(imageFilename{m,n}));
-            H = TotalTransform(:,:,n);
-            z_ = H(3,1) * u + H(3,2) * v + H(3,3);
-            u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
-            v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
-            im_ = vl_imwbackward(im2double(im),u_,v_) ;
-            im_ = im_(:,:,1);
-            
-            %add to combined image
-            nonzero = im_>0;
-            imCombined(nonzero) = im_(nonzero);
-            %imCombined=max(imCombined, im_);
-            %figure(i)
-            %imshow(imCombined)
-            
-            %save each individually transformed image
-            [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
-            
-            rgba = repmat(im_(:,:,1),[1,1,2]);
-            rgba(:,:,2) = ~isnan(im_(:,:,1));
-            rgba = uint8(round(rgba*255));
-            
-            saveFileName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m),'.tif'];
-            saveTif(rgba,outputDir,saveFileName);
-            
-            numWritten = numWritten+1;
-            waitbar(numWritten/(N*MN),h,strcat('Writing Outputs (',num2str(100*numWritten/(N*MN),3),'%)'));
-        end
-        
-        %add to all combined image
-        nonzero = imCombined>0;
-        imCombinedAll(nonzero) = imCombined(nonzero);
-
-        
-        %figure(i);clf;
-        %imshow(imCombined)
-        %save combined image for each piece
-        if(NumOfRefs > 1)%only necessary if more than one piece
-            saveFileName = strcat('ref_',num2str(i),'_combined_m',num2str(m),'.tif');
-
-            if(AppendToExisting)
-                outNameList{i+1,m}=fullfile('Append',saveFileName);
-            else
-                outNameList{i+1,m}=saveFileName;
-            end
-
-            rgba = repmat(imCombined(:,:,1),[1,1,2]);
-            rgba(:,:,2) = ~isnan(imCombined(:,:,1));
-            rgba = uint8(round(rgba*255));
-            saveTif(rgba,outputDir,saveFileName);       
-        end
-    end
-
-        %save the combined image of all the pieces
-        saveFileName = strcat('all_ref_combined_m',num2str(m),'.tif');
-        if(AppendToExisting)
-            outNameList{1,m}=fullfile('Append',saveFileName);
-        else
-            outNameList{1,m}=saveFileName;
-        end
-        
-        rgba = repmat(imCombinedAll(:,:,1),[1,1,2]);
-        rgba(:,:,2) = ~isnan(imCombinedAll(:,:,1));
-        rgba = uint8(round(rgba*255));
-        saveTif(rgba,outputDir,saveFileName);
-    
-end
-
-runtime=toc
 %save variables
 save(fullfile(outputDir,'AOMontageSave'),'LocXY','inData','TransType',...
     'ResultsNumOkMatches','ResultsNumMatches',...
     'ResultsTransformToRef','f_all','d_all','N');
+
+%% Determine the dominant direction of each shifted image
+if export_to_pshop
+    group_directions = cell(NumOfRefs,1);
+    for i = 1: NumOfRefs
+        for n = RefChains{i}
+
+            % If we had 3 columns and we're not using the canon, then we can determine which should go in the
+            % "fovea" bin.
+            if ~strcmp(device_mode, 'canon') && (size(C,2) >= 3)
+                if any(strcmpi(strtrim(ID{n}), {'TRC','TR','MTE','MT','TM','TLC','TL',...
+                                            'MRE','MR','C','CENTER','MLE','ML'...
+                                            'BRC','BR','MBE','MB','BM','BLC','BL',}))
+                    group_directions{n} = 'Fovea';
+                    continue;
+                end
+            end
+
+            H = TotalTransform(:,:,n);
+
+            [greaterdist ind] = max( abs(H(1:2,3)) );
+
+            if ind==1
+                if sign(H(ind,3)) == 1
+                    if strcmpi(eyeSide,'os')
+                        group_directions{n} = 'Temporal';
+                    elseif strcmpi(eyeSide,'od')
+                        group_directions{n} = 'Nasal';
+
+                    end
+                else
+                    if strcmpi(eyeSide,'os')
+                        group_directions{n} = 'Nasal';
+                    elseif strcmpi(eyeSide,'od')
+                        group_directions{n} = 'Temporal';
+                    end
+                end
+            else
+                if sign(H(ind,3)) == 1
+                    group_directions{n} = 'Superior';
+                else
+                    group_directions{n} = 'Inferior';
+                end
+            end
+        end
+    end
+%%
+    % Only make folders for directions we have in the dataset.
+    numfov = unique(pixelScale);
+    for f=1:length(numfov)
+        unique_directions{f} = unique(group_directions(pixelScale==numfov(f)));
+    end
+    canvas_size = size(u);
+
+    psconfig( 'pixels', 'pixels', 10, 'no' );
+    psnewdoc( canvas_size(2), canvas_size(1), 72, ['SAVE_ME_AS_SOMETHING_NICE.psd'], 'grayscale');
+
+    % The sorting goes FOV->Modality->Direction
+    for f=length(fovlist):-1:1
+        make_Photoshop_group( fovlist{f} );
+        for m=MN:-1:1 %Make them backwards so that confocal is on top.
+
+            make_Photoshop_group( strrep(ModalitiesSrchStrings{m},'_','') );
+            add_to_Photoshop_group( fovlist{f}, 0 );
+
+            for k=1: length(unique_directions{f})                        
+                if ~isempty(unique_directions{f}{k})
+                    make_Photoshop_group( unique_directions{f}{k} );
+                    add_to_Photoshop_group( strrep(ModalitiesSrchStrings{m},'_',''), 0);
+                end
+                setActiveLayer(fovlist{f}, 1);
+            end
+        end
+        % Make the active layer the next FOV
+        setActiveLayer(fovlist{f}, 1);
+    end
+
+    %%
+    for i = 1: NumOfRefs
+        for n = RefChains{i}
+            loadednames={};
+            for m=1: MN
+                %Read each image, and then transform
+                im = imresize( imread(char(imageFilename{m,n})),pixelScale(n) ); % They need to be pretty for output! Keep it bicubic
+                H = TotalTransform(:,:,n);
+                z_ = H(3,1) * u + H(3,2) * v + H(3,3);
+                u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
+                v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
+                im_ = vl_imwbackward(im2double(im),u_,v_) ;
+                im_ = im_(:,:,1);
+
+                [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
+
+                loadednames{m} = name;
+
+                rgba = repmat(im_(:,:,1),[1,1,2]);
+                rgba(:,:,2) = ~isnan(im_(:,:,1));
+                rgba = uint8(round(rgba*255));
+
+                saveName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m)];
+                psnewlayer(saveName);
+
+                pssetpixels(rgba(:,:,2),16);
+                pssetpixels(rgba(:,:,1), 'undefined');
+
+                add_to_Photoshop_group(num2str(pixelScale(n),'%0.2f'),1) % FOV
+                add_to_Photoshop_group(ModalitiesSrchStrings{m},0) %Modality
+                add_to_Photoshop_group(group_directions{n},0) % Direction
+
+                numWritten = numWritten+1;
+                waitbar(numWritten/(N*MN),h,strcat('Writing to Photoshop (',num2str(100*numWritten/(N*MN),3),'%)'));
+            end
+            % Link the layers we just imported
+            link_Photoshop_layers(loadednames);
+        end
+    end
+
+%%
+else
+    for m = 1:MN
+        %initialize blank combined image of all pieces for the modality
+            im =  imread(char(imageFilename{m,AllRefIndex(1)}));
+            imCombinedAll = vl_imwbackward(im2double(im),u,v);
+            imCombinedAll=imCombinedAll(:,:,1);
+            imCombinedAll(:,:,:) = 0;
+
+        for i = 1: NumOfRefs
+            %initialize blank combined image for the modality/piece
+            im =  imread(char(imageFilename{m,AllRefIndex(i)}));
+            imCombined = vl_imwbackward(im2double(im),u,v);
+            imCombined = imCombined(:,:,1);
+            imCombined(:,:,:) = 0;
+
+            for n = RefChains{i}
+                %read each image, and then transform
+                im = imread(char(imageFilename{m,n}));
+                H = TotalTransform(:,:,n);
+                z_ = H(3,1) * u + H(3,2) * v + H(3,3);
+                u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
+                v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
+                im_ = vl_imwbackward(im2double(im),u_,v_) ;
+                im_ = im_(:,:,1);
+
+                %add to combined image
+                nonzero = im_>0;
+                imCombined(nonzero) = im_(nonzero);
+                %imCombined=max(imCombined, im_);
+                %figure(i)
+                %imshow(imCombined)
+
+                %save each individually transformed image
+                [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
+
+                rgba = repmat(im_(:,:,1),[1,1,2]);
+                rgba(:,:,2) = ~isnan(im_(:,:,1));
+                rgba = uint8(round(rgba*255));
+
+                saveFileName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m),'.tif'];
+                saveTif(rgba,outputDir,saveFileName);
+
+                numWritten = numWritten+1;
+                waitbar(numWritten/(N*MN),h,strcat('Writing Outputs (',num2str(100*numWritten/(N*MN),3),'%)'));
+            end
+
+            %add to all combined image
+            nonzero = imCombined>0;
+            imCombinedAll(nonzero) = imCombined(nonzero);
+
+
+            %figure(i);clf;
+            %imshow(imCombined)
+            %save combined image for each piece
+            if(NumOfRefs > 1)%only necessary if more than one piece
+                saveFileName = strcat('ref_',num2str(i),'_combined_m',num2str(m),'.tif');
+
+                if(AppendToExisting)
+                    outNameList{i+1,m}=fullfile('Append',saveFileName);
+                else
+                    outNameList{i+1,m}=saveFileName;
+                end
+
+                rgba = repmat(imCombined(:,:,1),[1,1,2]);
+                rgba(:,:,2) = ~isnan(imCombined(:,:,1));
+                rgba = uint8(round(rgba*255));
+                saveTif(rgba,outputDir,saveFileName);       
+            end
+        end
+
+            %save the combined image of all the pieces
+            saveFileName = strcat('all_ref_combined_m',num2str(m),'.tif');
+            if(AppendToExisting)
+                outNameList{1,m}=fullfile('Append',saveFileName);
+            else
+                outNameList{1,m}=saveFileName;
+            end
+
+            rgba = repmat(imCombinedAll(:,:,1),[1,1,2]);
+            rgba(:,:,2) = ~isnan(imCombinedAll(:,:,1));
+            rgba = uint8(round(rgba*255));
+            saveTif(rgba,outputDir,saveFileName);
+
+    end
+end
+runtime=toc
+
 
