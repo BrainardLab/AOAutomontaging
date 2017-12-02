@@ -34,8 +34,6 @@ tic
 
 
 %Algorithm Parameters
-ROICropPct = 0; %Sets a percentage crop on the boundaries of the image, where SIFT features are
-SiftLevel = 55; %The number of levels to use in SIFT
 NumOkMatchesThresh = 10; %Threshold for number of SIFT matches needed before accepting the transformation
 matchexp = '_\d\d\d\d_ref_\d'; %String match that is expected to show up in the filename of each image. E.g. '_0018_ref_7_'
 
@@ -45,40 +43,13 @@ matchexp = '_\d\d\d\d_ref_\d'; %String match that is expected to show up in the 
 % C = textscan(fileID, '%d8 %s %s %s %s %d8 %s %d8 %d8', 'delimiter', '\t');
 %N = size(C{1},1);
 parallelFlag = exist('parfor');
-Allfiles = dir(fullfile(imageDir,'*.tif'));
-Allfiles = {Allfiles.name};
 
-MN = size(ModalitiesSrchStrings,1);
-inData = [];
-
-%create multi-modal data structure
-%depending on parameter array modalitiesToUse
-counter = 0;
-for m = 1:MN
-    
-    if (~isempty(ModalitiesSrchStrings{m}))%check it's not empty
-        imagesFound = sort(Allfiles(~cellfun(@isempty, strfind(Allfiles, ModalitiesSrchStrings{m}))));%search for image of this modality
-        if(~isempty(imagesFound))
-            inData = [inData; imagesFound];
-            counter = counter + 1;
-        end
-        
-    end
-    %confocal = sort(Allfiles(~cellfun(@isempty, strfind(Allfiles, '_confocal_'))));
-    %darkfield = sort(Allfiles(~cellfun(@isempty, strfind(Allfiles, '_avg_'))));
-    %splitDecision = sort(Allfiles(~cellfun(@isempty, strfind(Allfiles, '_split_'))));
-    
-end
-MN = counter;%only using nonempty identifiers
+%load data
+[inData, MN] = organizeDataByModality(imageDir, ModalitiesSrchStrings);
 N = size(inData,2);
 
-
 %initialize all variables
-pixelScale = ones(1,N); % Stores the relative size of our images
-ID = cell(1,N);
-LocXY = nan(2,N);%set NaN to start
 RelativeTransformToRef = zeros(3,3,N);%stores relative transform between matched pairs
-imageFilename = cell(MN,N);%stores all filenames
 Matched = zeros(1,N);%store if image is matched already
 MatchedTo = zeros(1,N);%keeps track of which image is matched to which
 
@@ -88,152 +59,33 @@ ResultsNumMatches = -ones(N,N);
 ResultsScaleToRef = -ones(N,N);
 ResultsTransformToRef = zeros(3,3,N,N);
 
-%stores sift features for each image
-f_all = cell(MN,N);
-d_all = cell(MN,N);
-
-if strcmp(device_mode, 'multi_modal')
-    
-    %load position info from excel spreadsheet
-    [temp,temp2,C] = xlsread(posFileLoc);
-    C(cellfun(@(x) any(isnan(x)), C)) = {''};
-    C = cellfun(@num2str, C,'UniformOutput',false); % First make them all strings.
-    
-    %First look for key info like which eye
-    eyeSide = 'OS';    
-    for i = 1:size(C,1)
-        if(strcmpi(C{i,1},'eye'))
-            eyeSide = C{i,2};
-        end
-    end
-    
-    
-    % Then convert back to a number, before adding the trappings of our
-    % file ids.
-    C(:,1) = cellfun(@(x) ['_' num2str( str2double(x),'%04.0f') '_'], C(:,1),'UniformOutput',false);
-    
-    %verify that the image id's line up for all modalities
-    for n = 1:N
-        %build filename structure and check to make sure all modalities are
-        %present for all ids
-        imageFilename{1,n} = fullfile(imageDir, inData{1,n});
-        ImageID_m1 = regexpi(inData{1,n},matchexp,'match');
-        for m = 2:MN
-            imageFilename{m,n} = fullfile(imageDir, inData{m,n});
-            ImageID_mf = regexpi(inData{m,n},matchexp,'match');
-            if(~strcmpi(ImageID_m1,ImageID_mf))
-                errordlg(['Error: Mismatch detected. Every image number must have the same number of modalities. Check image ' ImageID_m1]);
-                outNameList = [];
-                return
-            end
-        end
-        %match with info from excel
-        for i = 1:size(C,1)
-                        
-            if (~isempty(strfind(inData{1,n}, C{i,1})))
-                
-                if(size(C,2) >= 4)
-                    pixelScale(n) = str2double(strtrim(C{i,4}));
-                end
-                
-                %first try looking at coordinate grid
-                if(size(C,2) >= 3)
-                    ID{n} = C{i,2};
-                    Loc = strsplit(C{i,3},',');
-                    if(size(Loc,2) == 2)
-                        LocXY(1,n) = str2double(strtrim(Loc{1}));
-                        LocXY(2,n) = str2double(strtrim(Loc{2}));
-                    end
-                end
-                
-                if(size(C,2) >= 2)
-                    %coordinate grind c
-                    if(isnan(LocXY(1,n)) || isnan(LocXY(2,n)))
-                        LocXY(:,n) = parseShorthandLoc(C{i,2},eyeSide);
-                    end
-                end
-                if(isnan(LocXY(1,n)) || isnan(LocXY(2,n)))
-                    errordlg(['Error: Location missing or invalid for image ' ImageID_m1]);
-                    outNameList = [];
-                    return
-                end
-                break;
-            end
-        end
-        
-    end
-    
-elseif strcmp(device_mode, 'canon')
-    for n = 1:N
-        [ eyeSide, LocXY(:,n) ] = parseCanonFName( inData{1,n} );
-        imageFilename{1,n} = fullfile(imageDir, inData{1,n});
-    end
+%read position file
+[imageFilename, eyeSide, pixelScale, LocXY, ID, NC, errorFlag] = readPositionFile(imageDir, inData, posFileLoc, device_mode, matchexp, MN, N);
+%catch errors
+if(errorFlag)
+    errordlg(errorFlag);
+    outNameList = [];
+    return
 end
-
-pixelScale = max(pixelScale)./pixelScale;
 
 %sort using LocXY
-[sortLocXY I] = sortrows(abs(LocXY)',[1,2]);
-LocXY=LocXY(:,I);
-ID = ID(I);
-pixelScale= pixelScale(I);
-
-for m = 1:MN
-    imageFilename(m,:)=imageFilename(m,I);
-    inData(m,:)=inData(m,I);
-end
-
-
+[LocXY, inData, imageFilename, pixelScale,ID] = sortUsingLocXY(LocXY, inData, imageFilename, pixelScale, ID, MN);
 
 if(~AppendToExisting)
-    %If new then calculate All Sift Features
-    h = waitbar(0,'Calculating Sift Features (0%)');
-    for n=1:N
-        if(parallelFlag)
-            parfor m = 1:MN
-                im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale(n),'bilinear');
-                
-                if(featureType == 0)
-                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
-                elseif(featureType == 1)
-                    [f1,d1] = gridFeatures(im(:,:,1));
-                else
-                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
-                end
-                
-                [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
-                f_all{m,n} = f1_crop;
-                d_all{m,n} = d1_crop;
-            end
-        else
-            for m = 1:MN
-                im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale(n),'bilinear');
-                if(featureType == 0)
-                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
-                elseif(featureType == 1)
-                    [f1,d1] = gridFeatures(im(:,:,1));
-                else
-                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
-                end
-                [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
-                f_all{m,n} = f1_crop;
-                d_all{m,n} = d1_crop;
-            end
-        end
-        waitbar(n/(N),h,strcat('Calculating Sift Features (',num2str(100*n/N,3),'%)'));
-    end
+    %If new then calculate All Features
+    [f_all, d_all, h] = calculateFeatures(imageFilename, parallelFlag, pixelScale, featureType, MN, N);
 else
     %If appending we start by loading variable from the save
     saved = load(MontageSave,'LocXY','inData','TransType',...
         'ResultsNumOkMatches','ResultsNumMatches',...
         'ResultsTransformToRef','f_all','d_all','N', 'ResultsScaleToRef');
-    %     if(~isfield(saved,'TransType') || (saved.TransType ~= TransType))
-    %         choice = questdlg('Selected transformation type does not match that saved in AOMontageSave.mat. Proceed anyways?','Warrning');
-    %         if(~isequal(choice,'Yes'))
-    %             outNameList = [];
-    %             return;
-    %         end
-    %     end
+        if(~isfield(saved,'TransType') || (saved.TransType ~= TransType))
+            choice = questdlg('Selected transformation type does not match that saved in AOMontageSave.mat. Proceed anyways?','Warning');
+            if(~isequal(choice,'Yes'))
+                outNameList = [];
+                return;
+            end
+        end
     
     outputDir = fullfile(outputDir,'Append');
     mkdir(outputDir);
@@ -244,7 +96,7 @@ else
     for n = 1:N
         for s = 1:saved.N
             for m=1:MN
-                if(isequal(inData(1,n),saved.inData(m,s)))% && isequal(LocXY(:,n),saved.LocXY(:,s)))
+                if(isequal(inData(1,n),saved.inData(m,s)))% check if the name is same from previous results.
                     LocXY(:,n) = saved.LocXY(:,s);
                     verified(n) = 1;
                     transferFrom(n) = s;
@@ -369,7 +221,7 @@ while (sum(Matched) < N)
                                     ',',num2str(LocXY(2,refIndex)),')','.jpg');
                                 
                                 saveMatchesName=fullfile(outputDir,saveMatchesName);
-                                [relativeTransform, numOkMatches, numMatches, bestScale]=sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,0,f_all(:,refIndex),d_all(:,refIndex),f_all(:,n),d_all(:,n),TransType);
+                                [relativeTransform, numOkMatches, numMatches, bestScale]=sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,0,f_all(:,refIndex),d_all(:,refIndex),f_all(:,n),d_all(:,n),TransType,[],featureType);
                                 
                                 ResultsNumOkMatches(n,refIndex) = numOkMatches;
                                 ResultsNumMatches(n,refIndex) = numMatches;
@@ -630,7 +482,7 @@ if export_to_pshop
             
             % If we had 3 columns and we're not using the canon, then we can determine which should go in the
             % "fovea" bin.
-            if ~strcmp(device_mode, 'canon') && (size(C,2) >= 3)
+            if ~strcmp(device_mode, 'canon') && (NC >= 3)
                 if any(strcmpi(strtrim(ID{n}), {'TRC','TR','MTE','MT','TM','TLC','TL',...
                         'MRE','MR','C','CENTER','MLE','ML'...
                         'BRC','BR','MBE','MB','BM','BLC','BL',}))
