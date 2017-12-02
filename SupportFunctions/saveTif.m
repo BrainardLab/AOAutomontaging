@@ -20,6 +20,17 @@ tob.setTag('PlanarConfiguration',Tiff.PlanarConfiguration.Separate);
 tob.setTag('Software','MATLAB')
 tob.setTag('SamplesPerPixel',2);
 
+if(size(imageToSave,3) == 1)
+
+imageToSave = repmat(imageToSave(:,:,1),[1,1,2]);
+imageToSave(:,:,2) = ~isnan(imageToSave(:,:,1));
+
+end
+
+if(isa(imageToSave,'double') || isa(imageToSave,'single'))
+    imageToSave = uint8(round(imageToSave*255));
+end
+
 %# write and close the file
 tob.write(imageToSave)
 tob.close
