@@ -121,7 +121,7 @@ if strcmp(device_mode, 'multi_modal')
         for m = 2:MN
             imageFilename{m,n} = fullfile(imageDir, inData{m,n});
             ImageID_mf = regexpi(inData{m,n},matchexp,'match');
-            if(~strcmpi(ImageID_m1,ImageID_mf));
+            if(~strcmpi(ImageID_m1,ImageID_mf))
                 errordlg(['Error: Mismatch detected. Every image number must have the same number of modalities. Check image ' ImageID_m1]);
                 outNameList = [];
                 return
@@ -737,15 +737,7 @@ if export_to_pshop
             link_Photoshop_layers(loadednames);
         end
     end
-<<<<<<< HEAD
-    
-    %%
-else
-=======
-
-%%
 end
->>>>>>> 0227ddf3361b59f56412a611ee439bb8207c6317
     for m = 1:MN
         %initialize blank combined image of all pieces for the modality
         im =  imread(char(imageFilename{m,AllRefIndex(1)}));
