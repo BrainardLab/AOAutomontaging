@@ -737,9 +737,15 @@ if export_to_pshop
             link_Photoshop_layers(loadednames);
         end
     end
+<<<<<<< HEAD
     
     %%
 else
+=======
+
+%%
+end
+>>>>>>> 0227ddf3361b59f56412a611ee439bb8207c6317
     for m = 1:MN
         %initialize blank combined image of all pieces for the modality
         im =  imread(char(imageFilename{m,AllRefIndex(1)}));
@@ -756,7 +762,7 @@ else
             
             for n = RefChains{i}
                 %read each image, and then transform
-                im = imread(char(imageFilename{m,n}));
+                im = imresize( imread(char(imageFilename{m,n})),pixelScale(n) );
                 H = TotalTransform(:,:,n);
                 z_ = H(3,1) * u + H(3,2) * v + H(3,3);
                 u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
@@ -823,7 +829,7 @@ else
         saveTif(rgba,outputDir,saveFileName);
         
     end
-end
+
 runtime=toc
 
 
