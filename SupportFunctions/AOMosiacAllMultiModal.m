@@ -1,13 +1,13 @@
-function  outNameList = AOMosiacAllMultiModal(imageDir, posFileLoc, outputDir, device_mode, ModalitiesSrchStrings,TransType,AppendToExisting,MontageSave,export_to_pshop)
+function  [outNameList, imageFilename, TotalTransform, f_all, d_all] = AOMosiacAllMultiModal(imageDir, posFileLoc, outputDir, device_mode, ModalitiesSrchStrings,TransType,AppendToExisting,MontageSave,export_to_pshop,featureType)
 %Main AO Montaging Function that creates a full montage from an input
 %directory with images and nominal coordinate location
 %Inputs:
-%imageDir -- Folder location containing all input images to be montaged 
+%imageDir -- Folder location containing all input images to be montaged
 %posFileLoc -- An excel spreadsheet file indicating the coordinate
 %              locations of each image. [See demo->Multi-Modal for example file.]
 %outputDir -- Folder location for where the montaged images will be saved
-%device_mode -- The device type used to acquire the images ['multi_modal' or 'canon'] 
-%ModalitiesSrchStrings -- Cell array of search strings to find each modality 
+%device_mode -- The device type used to acquire the images ['multi_modal' or 'canon']
+%ModalitiesSrchStrings -- Cell array of search strings to find each modality
 %       Example -- ModalitiesSrchStrings = {'confocal'; 'split_det'; 'avg'};
 %TransType -- Index for the type of transformation used by the matching:
 %  0 - Translation Only
@@ -34,7 +34,7 @@ tic
 
 
 %Algorithm Parameters
-ROICropPct = 0; %Sets a percentage crop on the boundaries of the image, where SIFT features are 
+ROICropPct = 0; %Sets a percentage crop on the boundaries of the image, where SIFT features are
 SiftLevel = 55; %The number of levels to use in SIFT
 NumOkMatchesThresh = 10; %Threshold for number of SIFT matches needed before accepting the transformation
 matchexp = '_\d\d\d\d_ref_\d'; %String match that is expected to show up in the filename of each image. E.g. '_0018_ref_7_'
@@ -62,7 +62,7 @@ for m = 1:MN
             inData = [inData; imagesFound];
             counter = counter + 1;
         end
-
+        
     end
     %confocal = sort(Allfiles(~cellfun(@isempty, strfind(Allfiles, '_confocal_'))));
     %darkfield = sort(Allfiles(~cellfun(@isempty, strfind(Allfiles, '_avg_'))));
@@ -75,7 +75,7 @@ N = size(inData,2);
 
 %initialize all variables
 pixelScale = ones(1,N); % Stores the relative size of our images
-ID = cell(1,N); 
+ID = cell(1,N);
 LocXY = nan(2,N);%set NaN to start
 RelativeTransformToRef = zeros(3,3,N);%stores relative transform between matched pairs
 imageFilename = cell(MN,N);%stores all filenames
@@ -85,6 +85,7 @@ MatchedTo = zeros(1,N);%keeps track of which image is matched to which
 %stores all pairwise transforms
 ResultsNumOkMatches = -ones(N,N);
 ResultsNumMatches = -ones(N,N);
+ResultsScaleToRef = -ones(N,N);
 ResultsTransformToRef = zeros(3,3,N,N);
 
 %stores sift features for each image
@@ -92,17 +93,26 @@ f_all = cell(MN,N);
 d_all = cell(MN,N);
 
 if strcmp(device_mode, 'multi_modal')
-
+    
     %load position info from excel spreadsheet
     [temp,temp2,C] = xlsread(posFileLoc);
     C(cellfun(@(x) any(isnan(x)), C)) = {''};
     C = cellfun(@num2str, C,'UniformOutput',false); % First make them all strings.
+    
+    %First look for key info like which eye
+    eyeSide = 'OS';    
+    for i = 1:size(C,1)
+        if(strcmpi(C{i,1},'eye'))
+            eyeSide = C{i,2};
+        end
+    end
+    
+    
     % Then convert back to a number, before adding the trappings of our
     % file ids.
     C(:,1) = cellfun(@(x) ['_' num2str( str2double(x),'%04.0f') '_'], C(:,1),'UniformOutput',false);
     
     %verify that the image id's line up for all modalities
-    eyeSide = 'OS';
     for n = 1:N
         %build filename structure and check to make sure all modalities are
         %present for all ids
@@ -119,13 +129,9 @@ if strcmp(device_mode, 'multi_modal')
         end
         %match with info from excel
         for i = 1:size(C,1)
-
-            if(strcmpi(C{i,1},'eye'))
-                eyeSide = C{i,2};
-            end          
-            
+                        
             if (~isempty(strfind(inData{1,n}, C{i,1})))
-
+                
                 if(size(C,2) >= 4)
                     pixelScale(n) = str2double(strtrim(C{i,4}));
                 end
@@ -139,10 +145,10 @@ if strcmp(device_mode, 'multi_modal')
                         LocXY(2,n) = str2double(strtrim(Loc{2}));
                     end
                 end
-
+                
                 if(size(C,2) >= 2)
                     %coordinate grind c
-                    if(isnan(LocXY(1,n)) || isnan(LocXY(2,n))) 
+                    if(isnan(LocXY(1,n)) || isnan(LocXY(2,n)))
                         LocXY(:,n) = parseShorthandLoc(C{i,2},eyeSide);
                     end
                 end
@@ -154,7 +160,7 @@ if strcmp(device_mode, 'multi_modal')
                 break;
             end
         end
-
+        
     end
     
 elseif strcmp(device_mode, 'canon')
@@ -174,6 +180,7 @@ pixelScale= pixelScale(I);
 
 for m = 1:MN
     imageFilename(m,:)=imageFilename(m,I);
+    inData(m,:)=inData(m,I);
 end
 
 
@@ -185,7 +192,15 @@ if(~AppendToExisting)
         if(parallelFlag)
             parfor m = 1:MN
                 im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale(n),'bilinear');
-                [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                
+                if(featureType == 0)
+                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                elseif(featureType == 1)
+                    [f1,d1] = gridFeatures(im(:,:,1));
+                else
+                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                end
+                
                 [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                 f_all{m,n} = f1_crop;
                 d_all{m,n} = d1_crop;
@@ -193,7 +208,13 @@ if(~AppendToExisting)
         else
             for m = 1:MN
                 im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale(n),'bilinear');
-                [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                if(featureType == 0)
+                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                elseif(featureType == 1)
+                    [f1,d1] = gridFeatures(im(:,:,1));
+                else
+                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                end
                 [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                 f_all{m,n} = f1_crop;
                 d_all{m,n} = d1_crop;
@@ -205,14 +226,14 @@ else
     %If appending we start by loading variable from the save
     saved = load(MontageSave,'LocXY','inData','TransType',...
         'ResultsNumOkMatches','ResultsNumMatches',...
-        'ResultsTransformToRef','f_all','d_all','N');
-    if(~isfield(saved,'TransType') || (saved.TransType ~= TransType))
-        choice = questdlg('Selected transformation type does not match that saved in AOMontageSave.mat. Proceed anyways?','Warrning');
-        if(~isequal(choice,'Yes'))
-            outNameList = [];
-            return;
-        end
-    end
+        'ResultsTransformToRef','f_all','d_all','N', 'ResultsScaleToRef');
+    %     if(~isfield(saved,'TransType') || (saved.TransType ~= TransType))
+    %         choice = questdlg('Selected transformation type does not match that saved in AOMontageSave.mat. Proceed anyways?','Warrning');
+    %         if(~isequal(choice,'Yes'))
+    %             outNameList = [];
+    %             return;
+    %         end
+    %     end
     
     outputDir = fullfile(outputDir,'Append');
     mkdir(outputDir);
@@ -223,7 +244,8 @@ else
     for n = 1:N
         for s = 1:saved.N
             for m=1:MN
-                if(isequal(inData(1,n),saved.inData(m,s)) && isequal(LocXY(:,n),saved.LocXY(:,s)))
+                if(isequal(inData(1,n),saved.inData(m,s)))% && isequal(LocXY(:,n),saved.LocXY(:,s)))
+                    LocXY(:,n) = saved.LocXY(:,s);
                     verified(n) = 1;
                     transferFrom(n) = s;
                 end
@@ -249,13 +271,20 @@ else
                     ResultsNumOkMatches(n1,n2) = saved.ResultsNumOkMatches(s1,s2);
                     ResultsNumMatches(n1,n2) = saved.ResultsNumMatches(s1,s2);
                     ResultsTransformToRef(:,:,n1,n2) = saved.ResultsTransformToRef(:,:,s1,s2);
+                    ResultsScaleToRef(n1,n2) = saved.ResultsScaleToRef(s1,s2);
                 end
             end
         else%if not calculate sift features
             if(parallelFlag)
                 parfor m = 1:MN
                     im = imresize( im2single(imread(char(imageFilename{m,n1}))), pixelScale(n),'bilinear' );
-                    [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                    if(featureType == 0)
+                        [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                    elseif(featureType == 1)
+                        [f1,d1] = gridFeatures(im(:,:,1));
+                    else
+                        [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                    end
                     [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                     f_all{m,n1} = f1_crop;
                     d_all{m,n1} = d1_crop;
@@ -263,7 +292,14 @@ else
             else
                 for m = 1:MN
                     im = imresize( im2single(imread(char(imageFilename{m,n1}))), pixelScale(n),'bilinear' );
-                    [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                    if(featureType == 0)
+                        [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                    elseif(featureType == 1)
+                        [f1,d1] = gridFeatures(im(:,:,1));
+                    else
+                        [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                    end
+                    
                     [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                     f_all{m,n1} = f1_crop;
                     d_all{m,n1} = d1_crop;
@@ -333,11 +369,12 @@ while (sum(Matched) < N)
                                     ',',num2str(LocXY(2,refIndex)),')','.jpg');
                                 
                                 saveMatchesName=fullfile(outputDir,saveMatchesName);
-                                [relativeTransform, numOkMatches, numMatches]=sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,0,f_all(:,refIndex),d_all(:,refIndex),f_all(:,n),d_all(:,n),TransType);
+                                [relativeTransform, numOkMatches, numMatches, bestScale]=sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,0,f_all(:,refIndex),d_all(:,refIndex),f_all(:,n),d_all(:,n),TransType);
                                 
                                 ResultsNumOkMatches(n,refIndex) = numOkMatches;
                                 ResultsNumMatches(n,refIndex) = numMatches;
                                 ResultsTransformToRef(:,:,n,refIndex) = relativeTransform;
+                                ResultsScaleToRef(n,refIndex) =  bestScale;
                             end
                             
                             %set as best if better than current best
@@ -431,14 +468,14 @@ for i = 1: NumOfRefs
     
     %calculate centers of mass for each piece using nominal locations
     %We use median here to get cleaner locations
-    CoMX(i) = median(LocXY(1,RefChains{i}));    
+    CoMX(i) = median(LocXY(1,RefChains{i}));
     CoMY(i) = median(LocXY(2,RefChains{i}));
     
     %calculate bounding box for each piece
     for n = RefChains{i}
         im = imresize( imread(char(imageFilename{1,n})), pixelScale(n),'nearest' ); % we don't care what they look like, only how big they are
         H = TotalTransform(:,:,n);
-
+        
         %transform the 4 corners
         box = [1  size(im,2) size(im,2)  1 ;
             1  1           size(im,1)  size(im,1) ;
@@ -446,17 +483,17 @@ for i = 1: NumOfRefs
         box_ = inv(H) * box ;
         box_(1,:) = box_(1,:) ./ box_(3,:) ;
         box_(2,:) = box_(2,:) ./ box_(3,:) ;
-
+        
         maxXRef(i) = max([maxXRef(i) box_(1,:)]);
         minXRef(i) = min([minXRef(i) box_(1,:)]);
         maxYRef(i) = max([maxYRef(i) box_(2,:)]);
         minYRef(i) = min([minYRef(i) box_(2,:)]);
     end
-        Xwidth(i) = maxXRef(i)-minXRef(i);
-        Ywidth(i)= maxYRef(i)-minYRef(i);
+    Xwidth(i) = maxXRef(i)-minXRef(i);
+    Ywidth(i)= maxYRef(i)-minYRef(i);
 end
 %we want to make sure there is not two identical CoM, if there is, we push
-%it in the larger direction. 
+%it in the larger direction.
 ee = .0001;
 checked=zeros(NumOfRefs,1);
 for s = 1:NumOfRefs
@@ -496,11 +533,11 @@ maxWidthY=Ywidth(refOrderY_I(1));
 %of all pieces at that location, this makes a more organized picture
 %
 for i = 1:NumOfRefs %ToDo: not very efficient... but small number of pieces in general
-    ind = find(CoMX == CoMX(i));%find where location matches exactly 
+    ind = find(CoMX == CoMX(i));%find where location matches exactly
     maxXRef(ind) = max(maxXRef(ind));%set to max
     minXRef(ind) = min(minXRef(ind));%set to min
     
-    ind = find(CoMY == CoMY(i));%find where location matches exactly 
+    ind = find(CoMY == CoMY(i));%find where location matches exactly
     maxYRef(ind) = max(maxYRef(ind));%set to max
     minYRef(ind) = min(minYRef(ind));%set to min
 end
@@ -508,25 +545,25 @@ end
 
 
 for s = 2:NumOfRefs %no need to translate the first one, start at 2
-
-
-    %add width and pad for all previous pieces that do not share a number 
+    
+    
+    %add width and pad for all previous pieces that do not share a number
     %The center of each piece starts at the same location (0,0), so the width we add is
     %max loc of the bounding of the previous image, and subtract min loc of the current image
-        if(CoMX(refOrderX_I(s)) == CoMX(refOrderX_I(s-1)))%if same location as previous, use previous translation
-            refGlobalTransX(refOrderX_I(s)) = refGlobalTransX(refOrderX_I(s-1));
-            
-        else%if different location, then use previous translation + max loc of previous location + pad - min loc of own
-            refGlobalTransX(refOrderX_I(s)) = refGlobalTransX(refOrderX_I(s-1)) ...
-                + maxXRef(refOrderX_I(s-1)) - minXRef(refOrderX_I(s)) + pad;             
-        end
+    if(CoMX(refOrderX_I(s)) == CoMX(refOrderX_I(s-1)))%if same location as previous, use previous translation
+        refGlobalTransX(refOrderX_I(s)) = refGlobalTransX(refOrderX_I(s-1));
         
-        if(CoMY(refOrderY_I(s)) == CoMY(refOrderY_I(s-1)))
-            refGlobalTransY(refOrderY_I(s)) = refGlobalTransY(refOrderY_I(s-1));
-        else
-            refGlobalTransY(refOrderY_I(s)) = refGlobalTransY(refOrderY_I(s-1)) ...
-                + maxYRef(refOrderY_I(s-1)) - minYRef(refOrderY_I(s)) + pad; 
-        end
+    else%if different location, then use previous translation + max loc of previous location + pad - min loc of own
+        refGlobalTransX(refOrderX_I(s)) = refGlobalTransX(refOrderX_I(s-1)) ...
+            + maxXRef(refOrderX_I(s-1)) - minXRef(refOrderX_I(s)) + pad;
+    end
+    
+    if(CoMY(refOrderY_I(s)) == CoMY(refOrderY_I(s-1)))
+        refGlobalTransY(refOrderY_I(s)) = refGlobalTransY(refOrderY_I(s-1));
+    else
+        refGlobalTransY(refOrderY_I(s)) = refGlobalTransY(refOrderY_I(s-1)) ...
+            + maxYRef(refOrderY_I(s-1)) - minYRef(refOrderY_I(s)) + pad;
+    end
 end
 
 %Now adjust each transformation according to which piece they're in
@@ -545,11 +582,11 @@ maxXAll =-1000000000;
 minXAll =1000000000;
 maxYAll =-1000000000;
 minYAll =1000000000;
-        
+
 for n = 1:N
     im = imresize( imread(char(imageFilename{1,n})), pixelScale(n),'nearest'); % We don't care what they look like
     H = TotalTransform(:,:,n);
-
+    
     %transform the 4 corners
     box = [1  size(im,2) size(im,2)  1 ;
         1  1           size(im,1)  size(im,1) ;
@@ -557,7 +594,7 @@ for n = 1:N
     box_ = inv(H) * box ;
     box_(1,:) = box_(1,:) ./ box_(3,:) ;
     box_(2,:) = box_(2,:) ./ box_(3,:) ;
-
+    
     maxXAll = max([maxXAll box_(1,:)]);
     minXAll = min([minXAll box_(1,:)]);
     maxYAll = max([maxYAll box_(2,:)]);
@@ -582,36 +619,37 @@ fovlist = cellfun(@(n) num2str(n,'%0.2f'), num2cell(round(fovlist,2)),'UniformOu
 %save variables
 save(fullfile(outputDir,'AOMontageSave'),'LocXY','inData','TransType',...
     'ResultsNumOkMatches','ResultsNumMatches',...
-    'ResultsTransformToRef','f_all','d_all','N');
+    'ResultsTransformToRef','f_all','d_all','N','ResultsScaleToRef','MatchedTo','TotalTransform',...
+    'RelativeTransformToRef');
 
 %% Determine the dominant direction of each shifted image
 if export_to_pshop
     group_directions = cell(NumOfRefs,1);
     for i = 1: NumOfRefs
         for n = RefChains{i}
-
+            
             % If we had 3 columns and we're not using the canon, then we can determine which should go in the
             % "fovea" bin.
             if ~strcmp(device_mode, 'canon') && (size(C,2) >= 3)
                 if any(strcmpi(strtrim(ID{n}), {'TRC','TR','MTE','MT','TM','TLC','TL',...
-                                            'MRE','MR','C','CENTER','MLE','ML'...
-                                            'BRC','BR','MBE','MB','BM','BLC','BL',}))
+                        'MRE','MR','C','CENTER','MLE','ML'...
+                        'BRC','BR','MBE','MB','BM','BLC','BL',}))
                     group_directions{n} = 'Fovea';
                     continue;
                 end
             end
-
+            
             H = TotalTransform(:,:,n);
-
+            
             [greaterdist ind] = max( abs(H(1:2,3)) );
-
+            
             if ind==1
                 if sign(H(ind,3)) == 1
                     if strcmpi(eyeSide,'os')
                         group_directions{n} = 'Temporal';
                     elseif strcmpi(eyeSide,'od')
                         group_directions{n} = 'Nasal';
-
+                        
                     end
                 else
                     if strcmpi(eyeSide,'os')
@@ -629,26 +667,26 @@ if export_to_pshop
             end
         end
     end
-%%
+    %%
     % Only make folders for directions we have in the dataset.
     numfov = unique(pixelScale);
     for f=1:length(numfov)
         unique_directions{f} = unique(group_directions(pixelScale==numfov(f)));
     end
     canvas_size = size(u);
-
+    
     psconfig( 'pixels', 'pixels', 10, 'no' );
     psnewdoc( canvas_size(2), canvas_size(1), 72, ['SAVE_ME_AS_SOMETHING_NICE.psd'], 'grayscale');
-
+    
     % The sorting goes FOV->Modality->Direction
     for f=length(fovlist):-1:1
         make_Photoshop_group( fovlist{f} );
         for m=MN:-1:1 %Make them backwards so that confocal is on top.
-
+            
             make_Photoshop_group( strrep(ModalitiesSrchStrings{m},'_','') );
             add_to_Photoshop_group( fovlist{f}, 0 );
-
-            for k=1: length(unique_directions{f})                        
+            
+            for k=1: length(unique_directions{f})
                 if ~isempty(unique_directions{f}{k})
                     make_Photoshop_group( unique_directions{f}{k} );
                     add_to_Photoshop_group( strrep(ModalitiesSrchStrings{m},'_',''), 0);
@@ -659,7 +697,7 @@ if export_to_pshop
         % Make the active layer the next FOV
         setActiveLayer(fovlist{f}, 1);
     end
-
+    
     %%
     for i = 1: NumOfRefs
         for n = RefChains{i}
@@ -673,25 +711,25 @@ if export_to_pshop
                 v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
                 im_ = vl_imwbackward(im2double(im),u_,v_) ;
                 im_ = im_(:,:,1);
-
+                
                 [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
-
+                
                 loadednames{m} = name;
-
+                
                 rgba = repmat(im_(:,:,1),[1,1,2]);
                 rgba(:,:,2) = ~isnan(im_(:,:,1));
                 rgba = uint8(round(rgba*255));
-
+                
                 saveName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m)];
                 psnewlayer(saveName);
-
+                
                 pssetpixels(rgba(:,:,2),16);
                 pssetpixels(rgba(:,:,1), 'undefined');
-
+                
                 add_to_Photoshop_group(num2str(pixelScale(n),'%0.2f'),1) % FOV
                 add_to_Photoshop_group(ModalitiesSrchStrings{m},0) %Modality
                 add_to_Photoshop_group(group_directions{n},0) % Direction
-
+                
                 numWritten = numWritten+1;
                 waitbar(numWritten/(N*MN),h,strcat('Writing to Photoshop (',num2str(100*numWritten/(N*MN),3),'%)'));
             end
@@ -699,23 +737,23 @@ if export_to_pshop
             link_Photoshop_layers(loadednames);
         end
     end
-
-%%
+    
+    %%
 else
     for m = 1:MN
         %initialize blank combined image of all pieces for the modality
-            im =  imread(char(imageFilename{m,AllRefIndex(1)}));
-            imCombinedAll = vl_imwbackward(im2double(im),u,v);
-            imCombinedAll=imCombinedAll(:,:,1);
-            imCombinedAll(:,:,:) = 0;
-
+        im =  imread(char(imageFilename{m,AllRefIndex(1)}));
+        imCombinedAll = vl_imwbackward(im2double(im),u,v);
+        imCombinedAll=imCombinedAll(:,:,1);
+        imCombinedAll(:,:,:) = 0;
+        
         for i = 1: NumOfRefs
             %initialize blank combined image for the modality/piece
             im =  imread(char(imageFilename{m,AllRefIndex(i)}));
             imCombined = vl_imwbackward(im2double(im),u,v);
             imCombined = imCombined(:,:,1);
             imCombined(:,:,:) = 0;
-
+            
             for n = RefChains{i}
                 %read each image, and then transform
                 im = imread(char(imageFilename{m,n}));
@@ -725,65 +763,65 @@ else
                 v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
                 im_ = vl_imwbackward(im2double(im),u_,v_) ;
                 im_ = im_(:,:,1);
-
+                
                 %add to combined image
                 nonzero = im_>0;
                 imCombined(nonzero) = im_(nonzero);
                 %imCombined=max(imCombined, im_);
                 %figure(i)
                 %imshow(imCombined)
-
+                
                 %save each individually transformed image
                 [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
-
+                
                 rgba = repmat(im_(:,:,1),[1,1,2]);
                 rgba(:,:,2) = ~isnan(im_(:,:,1));
                 rgba = uint8(round(rgba*255));
-
+                
                 saveFileName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m),'.tif'];
                 saveTif(rgba,outputDir,saveFileName);
-
+                
                 numWritten = numWritten+1;
                 waitbar(numWritten/(N*MN),h,strcat('Writing Outputs (',num2str(100*numWritten/(N*MN),3),'%)'));
             end
-
+            
             %add to all combined image
             nonzero = imCombined>0;
             imCombinedAll(nonzero) = imCombined(nonzero);
-
-
+            
+            
             %figure(i);clf;
             %imshow(imCombined)
             %save combined image for each piece
             if(NumOfRefs > 1)%only necessary if more than one piece
                 saveFileName = strcat('ref_',num2str(i),'_combined_m',num2str(m),'.tif');
-
+                
                 if(AppendToExisting)
                     outNameList{i+1,m}=fullfile('Append',saveFileName);
                 else
                     outNameList{i+1,m}=saveFileName;
                 end
-
+                
                 rgba = repmat(imCombined(:,:,1),[1,1,2]);
                 rgba(:,:,2) = ~isnan(imCombined(:,:,1));
                 rgba = uint8(round(rgba*255));
-                saveTif(rgba,outputDir,saveFileName);       
+                saveTif(rgba,outputDir,saveFileName);
             end
         end
-
-            %save the combined image of all the pieces
-            saveFileName = strcat('all_ref_combined_m',num2str(m),'.tif');
-            if(AppendToExisting)
-                outNameList{1,m}=fullfile('Append',saveFileName);
-            else
-                outNameList{1,m}=saveFileName;
-            end
-
-            rgba = repmat(imCombinedAll(:,:,1),[1,1,2]);
-            rgba(:,:,2) = ~isnan(imCombinedAll(:,:,1));
-            rgba = uint8(round(rgba*255));
-            saveTif(rgba,outputDir,saveFileName);
-
+        
+        %save the combined image of all the pieces
+        saveFileName = strcat('all_ref_combined_m',num2str(m),'.tif');
+        if(AppendToExisting)
+            outNameList{1,m}=fullfile('Append',saveFileName);
+        else
+            outNameList{1,m}=saveFileName;
+        end
+        
+        rgba = repmat(imCombinedAll(:,:,1),[1,1,2]);
+        rgba(:,:,2) = ~isnan(imCombinedAll(:,:,1));
+        rgba = uint8(round(rgba*255));
+        saveTif(rgba,outputDir,saveFileName);
+        
     end
 end
 runtime=toc
