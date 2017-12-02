@@ -1,4 +1,4 @@
-function [bestH, numOkMatches_all, numMatches_all]= sift_mosaic_fast_MultiModal(im1, im2, saveDir,saveFlag,f1,d1,f2,d2,TransType,rotLimit)
+function [bestH, numOkMatches_all, numMatches_all, bestScale]= sift_mosaic_fast_MultiModal(im1, im2, saveDir,saveFlag,f1,d1,f2,d2,TransType,rotLimit,featureType)
 % Matches two images using given precalculated SIFT features
 %Input:
 %im1, im2 -- Input Images to be matched
@@ -29,6 +29,13 @@ if ~exist('rotLimit','var') || isempty(rotLimit)
     rotLimit=pi/18;
 end
 
+if ~exist('featureType','var') || isempty(rotLimit)
+    featureType=0;
+end
+
+%parameter
+matchTolerance = 3;%determines how close a tansformed match needs to be to be considerd an inlier
+
 %saveFlag=1;
 %saveDir='C:\Users\dontm\Downloads\temp\New folder (7)';
 
@@ -40,8 +47,12 @@ matches = cell(MN,1);
 numMatches = zeros(MN,1);
 for m = 1:MN
 
-    [matches_m, scores] = vl_ubcmatch_fast(d1{m},d2{m});
-
+    if(featureType==0)
+        [matches_m, scores] = vl_ubcmatch_fast(d1{m},d2{m});
+    elseif(featureType==1)
+        matches_m = matchGridFeatures(d1{m},d2{m});%,d1_int,d2_int);
+    end
+    
     X1_m = f1{m}(1:2,matches_m(1,:)) ;
     X2_m = f2{m}(1:2,matches_m(2,:)) ;
     %check for duplicate matches
@@ -79,6 +90,8 @@ clear H score ok ;
 bestScore = -1;
 bestH = eye(3,3);
 bestOK_all = zeros(1,size(X1,2));
+bestScale = 1;
+
 allIndex = 1:numMatches_all;%list of all the indexs for the matches
 for t = 1:5000
     % estimate model
@@ -91,6 +104,7 @@ for t = 1:5000
     
     H = eye(3,3);
     TransRadians = 0;
+    Scale = 1;
     if (TransType == 0)
         %Score Using Only Translation
         C1 = mean(X1(1:2,subset),2);
@@ -107,9 +121,10 @@ for t = 1:5000
     elseif (TransType == 2)
         %Score Using rotation + translation + scaling
         [dist,Z,trans]  = procrustes(X2(1:2,subset)',X1(1:2,subset)','scaling', true, 'reflection', false);
-        H = [trans.b*trans.T' mean(trans.c)'; 0 0 1];
+        H = [trans.b*trans.T' mean(trans.c,1)'; 0 0 1];
         T = trans.T';
         TransRadians = atan2(T(1,2),T(1,1));
+        Scale = trans.b;
     elseif(TransType == 3)
         %Score using homography (affine)
         A = [] ;
@@ -133,17 +148,19 @@ for t = 1:5000
     X2_ = H * X1 ;
     du = X2_(1,:)./X2_(3,:) - X2(1,:)./X2(3,:) ;
     dv = X2_(2,:)./X2_(3,:) - X2(2,:)./X2(3,:) ;
-    ok = (du.*du + dv.*dv) < 6*6 ;
+    ok = (du.*du + dv.*dv) < matchTolerance*matchTolerance;
     score = sum(ok) ;
     
-    if((score > bestScore) && ((abs(TransRadians) < rotLimit)))
+    if((score > bestScore) && ((abs(TransRadians) < rotLimit)) && Scale < 1.1 && Scale > .90)
         bestScore = score;
         bestH = H;
         bestOK_all = ok;
+        bestScale = Scale;
     end
     
 end
 
+%bestScale;
 numOkMatches_all = sum(bestOK_all);
 numOkMatches = zeros(MN,1);
 %separate valid matches by modality (visualization purpose only)
@@ -213,14 +230,15 @@ if(saveFlag)
         saveMatchesName=['SIFTmatches_m' num2str(m) '.bmp'];
         saveas(figID1,fullfile(saveDir,saveMatchesName))
         
-        
         figID2 = figure(1);
         imOut = [padarray(im1{m}(:,:,1),[dh1 gapSize],255,'post') padarray(im2{m}(:,:,1),dh2,255,'post')];
         imagesc(imOut);
         caxis([min(min(min(im1{m})),min(min(im2{m}))) max(max(max(im1{m})),max(max(im2{m})))]);
         o = size(im1{m},2) + gapSize;
+        if(max(bestOK{m}) > 0)
         line([f1{m}(1,matches{m}(1,bestOK{m}));f2{m}(1,matches{m}(2,bestOK{m}))+o], ...
             [f1{m}(2,matches{m}(1,bestOK{m}));f2{m}(2,matches{m}(2,bestOK{m}))]) ;
+        end
         title(sprintf('%d (%.2f%%) inliner matches out of %d', ...
             sum(bestOK{m}), ...
             100*sum(bestOK{m})/numMatches(m), ...
@@ -277,11 +295,16 @@ if(saveFlag)
         im1_ = vl_imwbackward(im2double(im1{m}),u,v) ;
         im1_ = im1_(:,:,1);
         
+        saveTif(im1_,saveDir,'image_A.tif');
+        
         z_ = H(3,1) * u + H(3,2) * v + H(3,3);
         u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
         v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
         im2_ = vl_imwbackward(im2double(im2{m}),u_,v_) ;
         im2_ = im2_(:,:,1);
+
+        saveTif(im2_,saveDir,'image_B_Trans.tif');
+
         
         % mass = ~isnan(im1_) + ~isnan(im2_) ;
         im1_(isnan(im1_)) = 0 ;
@@ -296,6 +319,13 @@ if(saveFlag)
        
         
         overlap= (im1_ ~= 0) & (im2_ ~= 0);
+        
+        
+        imAvg = (im1_+im2_)./(overlap+ones(size(overlap)));
+
+        saveTif(imAvg,saveDir,'image_Avg.tif');
+
+        
         im1_(overlap) = 0; %for visualization, im2 is ontop
         mosaic = (im1_ + im2_);
         
