@@ -7,7 +7,6 @@ function [gg XX YY]= findlocalmin(imageA)
 CutOffinit = 0.6;
 
 Thrshld = 0;  % modification : HT
-tic
 %verify input validity
 ImgDim = size(imageA);
 
@@ -56,8 +55,6 @@ g = im2bw(g);
 [Y, X] = find(g == 1);
 
 S = [X Y];
-
-toc
 
 % Quicker way to find N-N distance... RFC 06-20-2012
 dist_between_pts=squareform(pdist(S)); % Measure the distance from each set of points to the other
