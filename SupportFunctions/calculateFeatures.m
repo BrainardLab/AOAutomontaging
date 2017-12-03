@@ -1,6 +1,5 @@
 function [f_all, d_all, h] = calculateFeatures(imageFilename, parallelFlag, pixelScale, featureType, MN, N)
-%UNTITLED5 Summary of this function goes here
-%   Detailed explanation goes here
+%Calculate features for all images listed in imageFilename
 
 %feature parameters
 SiftLevel = 55; %The number of levels to use in SIFT, default
@@ -10,8 +9,15 @@ ROICropPct = 0; %Sets a percentage crop on the boundaries of the image, where SI
 f_all = cell(MN,N);
 d_all = cell(MN,N);
 
+if (featureType == 0) 
+FeatureName = 'SIFT';
+elseif (featureType == 1)
+FeatureName = 'Constellation';
+end
 
-h = waitbar(0,'Calculating Sift Features (0%)');
+
+
+h = waitbar(0,['Calculating ' FeatureName ' Features (0%)']);
 for n=1:N
     if(parallelFlag)
         pixelScale_n = pixelScale(n);
@@ -45,7 +51,7 @@ for n=1:N
             d_all{m,n} = d1_crop;
         end
     end
-    waitbar(n/(N),h,strcat('Calculating Sift Features (',num2str(100*n/N,3),'%)'));
+    waitbar(n/(N),h,['Calculating ' FeatureName ' Features (' num2str(100*n/N,3) '%)']);
 end
 
 
