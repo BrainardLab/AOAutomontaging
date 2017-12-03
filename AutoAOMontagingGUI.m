@@ -149,7 +149,12 @@ function imagefolder_Callback(hObject, eventdata, handles)
 % hObject    handle to imagefolder (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.imgfolder_name = uigetdir;
+
+selectedDir=uigetdir(handles.imgfolder_name);
+if(selectedDir == 0)
+    return
+end
+handles.imgfolder_name = selectedDir;
 set(handles.selectFolderText, 'String', handles.imgfolder_name) ;
 set(handles.selectFolderText, 'TooltipString', handles.imgfolder_name) ;
 
@@ -192,7 +197,8 @@ function selectPosFile_Callback(hObject, eventdata, handles)
 % hObject    handle to selectPosFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-[FileName,PathName] = uigetfile(fullfile(pwd,'*.xlsx'));
+defaultfolder = handles.imgfolder_name;
+[FileName,PathName] = uigetfile(fullfile(defaultfolder,'*.xlsx'));
 handles.postionFile_name = fullfile(PathName,FileName);
 set(handles.posFileText, 'String', handles.postionFile_name);
 set(handles.posFileText, 'TooltipString', handles.postionFile_name);
@@ -319,7 +325,12 @@ function outputFolder_Callback(hObject, eventdata, handles)
 % hObject    handle to outputFolder (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.outputFolder_name = uigetdir;
+
+selectedDir=uigetdir;
+if(selectedDir == 0)
+    return
+end
+handles.outputFolder_name = selectedDir;
 set(handles.outputFolderText, 'String', handles.outputFolder_name) ;
 set(handles.outputFolderText, 'TooltipString', handles.outputFolder_name) ;
 guidata(hObject, handles);
