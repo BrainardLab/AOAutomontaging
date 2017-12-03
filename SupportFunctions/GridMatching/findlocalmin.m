@@ -1,4 +1,8 @@
 function [gg XX YY]= findlocalmin(imageA)
+%This code is mostly borrowed from the function 'conecountingfunc.m'
+%From the package - 'Cone_Counting_Distribution_Edition_v0p21' written by Robert F Cooper
+%Edits by Min Chen
+
 % First pass to find cones and set filter
 CutOffinit = 0.6;
 
@@ -99,7 +103,7 @@ end
 gg = im2bw(gg);
 [YY, XX] = find(gg == 1);
 
-SS = [XX YY];
+%SS = [XX YY];
 
 % Quicker way to find N-N distance... RFC 06-20-2012
 %dist_between_pts=squareform(pdist(SS)); % Measure the distance from each set of points to the other
@@ -111,10 +115,10 @@ SS = [XX YY];
 
 
 % Clip edge cones to reduce artifacting
-clipped_coords=coordclip_npoly([YY XX],[2 max(YY)-1],[2 max(XX)-1]);
+%clipped_coords=coordclip_npoly([YY XX],[2 max(YY)-1],[2 max(XX)-1]);
 
-XX = clipped_coords(:,2);
-YY = clipped_coords(:,1);
+%XX = clipped_coords(:,2);
+%YY = clipped_coords(:,1);
 
 end
 
