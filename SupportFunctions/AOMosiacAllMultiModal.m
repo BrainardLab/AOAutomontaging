@@ -19,6 +19,10 @@ function  [outNameList, imageFilename, TotalTransform, f_all, d_all] = AOMosiacA
 %                    existing montage [0 or 1]
 %MontageSave -- File location of existing AOMontageSave.m to be appended to.
 %               Only applicable if AppendToExisting = 1;
+%export_to_pshop -- flag for whether to also save as a photoshop montage
+%featureType -- Feature type to use for matching
+%  0 - SIFT
+%  1 - Constellation Feature
 
 %Outputs:
 %outNameList -- List of all file locations for saved montaged images
@@ -36,12 +40,13 @@ tic
 %Algorithm Parameters
 NumOkMatchesThresh = 10; %Threshold for number of SIFT matches needed before accepting the transformation
 matchexp = '_\d\d\d\d_ref_\d'; %String match that is expected to show up in the filename of each image. E.g. '_0018_ref_7_'
+if ~exist('featureType','var') || isempty(featureType)%default featuretype
+    featureType=0;
+end
+
+
 
 %Load info from descriptor file
-% formatSpec = '%s';
-% C_text = textscan(fileID,formatSpec,9,'Delimiter','\t');
-% C = textscan(fileID, '%d8 %s %s %s %s %d8 %s %d8 %d8', 'delimiter', '\t');
-%N = size(C{1},1);
 parallelFlag = exist('parfor');
 
 %load data

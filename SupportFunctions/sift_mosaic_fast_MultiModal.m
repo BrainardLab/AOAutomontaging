@@ -12,11 +12,16 @@ function [bestH, numOkMatches_all, numMatches_all, bestScale]= sift_mosaic_fast_
 %  2 - Rotation + Translation + Scaling
 %  3 - Affine
 %  4 - Rotation + Translation + Individual Scaling
+%rotLimit -- The maximum rotation allowed in the transformation
+%featureType -- Feature type to use for matching
+%  0 - SIFT
+%  1 - Constellation Feature
 
 %Outputs:
 %bestH -- Best transformation found (in matrix form)
 %numOkMatches_all -- Total number of inlier matches determined by RANSAC
 %numMatches_all -- Total number of matches found
+%BestScale -- Best scale found for the transform
 
 %Written by Min Chen (minchen1@upenn.edu)
 
@@ -29,13 +34,17 @@ if ~exist('rotLimit','var') || isempty(rotLimit)
     rotLimit=pi/18;
 end
 
-if ~exist('featureType','var') || isempty(rotLimit)
+if ~exist('featureType','var') || isempty(featureType)
     featureType=0;
 end
 
 %parameter
-matchTolerance = 3;%determines how close a tansformed match needs to be to be considerd an inlier
-
+matchTolerance = 6;%determines how close a tansformed match needs to be to be considerd an inlier
+if(featureType==0)%change this depending on the type of feature
+    matchTolerance = 6;%sift has some leeway due to filtering
+elseif(featureType==1)
+    matchTolerance = 3;%Constellation features should be close to cell-to-cell
+end
 %saveFlag=1;
 %saveDir='C:\Users\dontm\Downloads\temp\New folder (7)';
 
@@ -46,7 +55,7 @@ X2 = [];
 matches = cell(MN,1);
 numMatches = zeros(MN,1);
 for m = 1:MN
-
+    
     if(featureType==0)
         [matches_m, scores] = vl_ubcmatch_fast(d1{m},d2{m});
     elseif(featureType==1)
@@ -99,7 +108,7 @@ for t = 1:5000
         subset = randsample(allIndex,3);
         %subset = vl_colsubset(1:numMatches_all, 3) ;
     else
-        subset = allIndex;    
+        subset = allIndex;
     end
     
     H = eye(3,3);
@@ -236,8 +245,8 @@ if(saveFlag)
         caxis([min(min(min(im1{m})),min(min(im2{m}))) max(max(max(im1{m})),max(max(im2{m})))]);
         o = size(im1{m},2) + gapSize;
         if(max(bestOK{m}) > 0)
-        line([f1{m}(1,matches{m}(1,bestOK{m}));f2{m}(1,matches{m}(2,bestOK{m}))+o], ...
-            [f1{m}(2,matches{m}(1,bestOK{m}));f2{m}(2,matches{m}(2,bestOK{m}))]) ;
+            line([f1{m}(1,matches{m}(1,bestOK{m}));f2{m}(1,matches{m}(2,bestOK{m}))+o], ...
+                [f1{m}(2,matches{m}(1,bestOK{m}));f2{m}(2,matches{m}(2,bestOK{m}))]) ;
         end
         title(sprintf('%d (%.2f%%) inliner matches out of %d', ...
             sum(bestOK{m}), ...
@@ -256,27 +265,9 @@ if(saveFlag)
     
     
 end
-% ha = axes('Position',[0 0 1 1],'Xlim',[0 1],'Ylim',[0 ...
-% 1],'Box','off','Visible','off','Units','normalized', 'clipping' , 'off');
-% totaltext = sprintf('%d (%.2f%%) total inliner matches out of %d in all modalities', ...
-%               sum(bestOK_all), ...
-%               100*sum(bestOK_all)/numMatches_all, ...
-%               numMatches_all) ;
-%
-% text(0.5, 1,totaltext,'HorizontalAlignment' ...
-% ,'center','VerticalAlignment', 'top')
-%
-%
-%
-%
-% drawnow ;
-% colormap('gray')
-% if(saveFlag)
-%     saveas(figID,saveMatchesName)
-% end
 
 % --------------------------------------------------------------------
-%                                                               Mosaic
+%                                                        Show   Mosaic
 % --------------------------------------------------------------------
 %
 if(saveFlag)
@@ -295,16 +286,16 @@ if(saveFlag)
         im1_ = vl_imwbackward(im2double(im1{m}),u,v) ;
         im1_ = im1_(:,:,1);
         
-        saveTif(im1_,saveDir,'image_A.tif');
+        saveTif(im1_,saveDir,['image_A_m' num2str(m) '.tif']);
         
         z_ = H(3,1) * u + H(3,2) * v + H(3,3);
         u_ = (H(1,1) * u + H(1,2) * v + H(1,3)) ./ z_ ;
         v_ = (H(2,1) * u + H(2,2) * v + H(2,3)) ./ z_ ;
         im2_ = vl_imwbackward(im2double(im2{m}),u_,v_) ;
         im2_ = im2_(:,:,1);
-
-        saveTif(im2_,saveDir,'image_B_Trans.tif');
-
+        
+        saveTif(im2_,saveDir,['image_B_Trans_m' num2str(m) '.tif']);
+        
         
         % mass = ~isnan(im1_) + ~isnan(im2_) ;
         im1_(isnan(im1_)) = 0 ;
@@ -316,15 +307,15 @@ if(saveFlag)
         set(gca,'LooseInset',get(gca,'TightInset'));
         saveMatchesName=['compare_m' num2str(m) '.bmp'];
         saveas(figID4,fullfile(saveDir,saveMatchesName))
-       
+        
         
         overlap= (im1_ ~= 0) & (im2_ ~= 0);
         
         
         imAvg = (im1_+im2_)./(overlap+ones(size(overlap)));
-
-        saveTif(imAvg,saveDir,'image_Avg.tif');
-
+        
+        saveTif(imAvg,saveDir,['image_Avg_m' num2str(m) '.tif']);
+        
         
         im1_(overlap) = 0; %for visualization, im2 is ontop
         mosaic = (im1_ + im2_);
