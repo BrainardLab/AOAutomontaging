@@ -38,17 +38,20 @@ if strcmp(device_mode, 'multi_modal')
             imageFilename{m,n} = fullfile(imageDir, inData{m,n});
             ImageID_mf = regexpi(inData{m,n},matchexp,'match');
             if(~strcmpi(ImageID_m1,ImageID_mf))%check for errors
-                 errorFlag = ['Error: Mismatch detected. Every image number must have the same number of modalities. Check image ' ImageID_m1];
-                 return;
+                errorFlag = ['Error: Mismatch detected. Every image number must have the same number of modalities. Check image ' ImageID_m1];
+                return;
             end
         end
         %match with info from excel
         for i = 1:size(C,1)
-                        
+            
             if (~isempty(strfind(inData{1,n}, C{i,1})))
                 
                 if(NC >= 4)
-                    pixelScale(n) = str2double(strtrim(C{i,4}));
+                    scale=str2double(strtrim(C{i,4}));
+                    if(~isnan(scale) && scale>0)
+                        pixelScale(n) = scale;
+                    end
                 end
                 
                 %first try looking at coordinate grid
