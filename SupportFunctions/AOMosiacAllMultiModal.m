@@ -47,7 +47,7 @@ end
 
 
 %Load info from descriptor file
-parallelFlag = 0;%exist('parfor');
+parallelFlag = exist('parfor');
 
 %load data
 [inData, MN] = organizeDataByModality(imageDir, ModalitiesSrchStrings);
