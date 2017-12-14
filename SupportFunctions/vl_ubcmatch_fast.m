@@ -7,21 +7,30 @@ thresh = 1.5;%default threshold for removing ambiguous matches
 d1 = single(d1);
 d2 = single(d2);
 
+%check if any of them are empty
+if(size(d1,2) < 1 || size(d2,2) < 1) 
+    matches = [];
+    scores = [];
+    return     
+end
 MAX_MAT_SIZE = 25000^2;
+
+N1 = size(d1,2);
+N2 = size(d2,2);
 
 %calculate all pair-wise distances
 % if dotflag
 
-    best = nan(1, length(d1));
-    secondbest = nan(1, length(d1));
-    index2 = nan(1, length(d1));
+    best = nan(1, N1);
+    secondbest = nan(1, N1);
+    index2 = nan(1, N1);
     
-    chunksize = floor(MAX_MAT_SIZE./length(d2));
+    chunksize = floor(MAX_MAT_SIZE./N2);
 
-    if chunksize <= length(d1)
-        d1chunkinds = uint32(1:chunksize-1:length(d1));
-        if d1chunkinds(end) ~= length(d1)
-           d1chunkinds = [d1chunkinds, length(d1)]; 
+    if chunksize <= N1
+        d1chunkinds = uint32(1:chunksize-1:N1);
+        if d1chunkinds(end) ~= N1
+           d1chunkinds = [d1chunkinds, N1]; 
         end
         tic;
         

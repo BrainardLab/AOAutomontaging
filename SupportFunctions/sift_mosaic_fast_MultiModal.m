@@ -50,6 +50,23 @@ end
 
 MN = size(f1,1);
 
+%check if either image had zero features, exit with no matches if so
+total_f1 = 0;
+total_f2 = 0;
+for m = 1:MN
+    total_f1 = total_f1+size(f1{m},2);
+    total_f2 = total_f2+size(f2{m},2);
+end
+if(total_f1 < 1 || total_f2 < 1) 
+bestH = eye(3,3);
+numOkMatches_all=0;
+numMatches_all=0;
+bestScale=1;
+return
+end
+
+
+
 X1 = [];
 X2 = [];
 matches = cell(MN,1);
