@@ -152,13 +152,19 @@ for t = 1:5000
         TransRadians = atan2(T(1,2),T(1,1));
         Scale = trans.b;
     elseif(TransType == 3)
-        %Score using homography (affine)
-        A = [] ;
-        for i = subset
-            A = cat(1, A, kron(X1(:,i)', vl_hat(X2(:,i)))) ;
-        end
-        [U,S,V] = svd(A) ;
-        H = reshape(V(:,9),3,3) ;
+        %Score using homography (NOT affine)
+%         A = [] ;
+%         for i = subset
+%             A = cat(1, A, kron(X1(:,i)', vl_hat(X2(:,i)))) ;
+%         end
+%         [U,S,V] = svd(A) ;
+%         H = reshape(V(:,9),3,3) ;
+
+        % Use MATLAB function until redoing with proper affine (parallel
+        % lines must be preserved!)
+        trans = estimateGeometricTransform(X1(1:2,:)', X2(1:2,:)','affine', 'MaxNumTrials',1000,'MaxDistance',matchTolerance);
+        H = trans.T';
+       
         TransRadians = atan2(H(1,2),H(1,1));
     elseif(TransType == 4)
         %individual scale
@@ -290,9 +296,9 @@ end
 if(saveFlag)
     H = bestH;
     for m = 1:MN
-        box2 = [1  size(im2{m},2) size(im2{m},2)  1 ;
-            1  1           size(im2{m},1)  size(im2{m},1) ;
-            1  1           1            1 ] ;
+        box2 = [1  size(im2{m},2) size(im2{m},2)  1              ;
+                1  1              size(im2{m},1)  size(im2{m},1) ;
+                1  1              1               1            ] ;
         box2_ = inv(H) * box2 ;
         box2_(1,:) = box2_(1,:) ./ box2_(3,:) ;
         box2_(2,:) = box2_(2,:) ./ box2_(3,:) ;
@@ -348,3 +354,4 @@ if(saveFlag)
         
     end
 end
+

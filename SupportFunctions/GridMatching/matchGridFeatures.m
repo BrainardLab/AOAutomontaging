@@ -7,11 +7,20 @@ thresh = 1.05;
 thresh2 = .2;
 index1 = 1:size(d1,2);
 
-for i = 1:N1
-    for j =  1:N2
-         dist_all(i,j) = sum(d1(:,i) & d2(:,j))/(sum(d1(:,i))+sum(d2(:,j))); 
-    end
-end
+d1=single(d1);
+d2=single(d2);
+
+% for i = 1:N1
+%     for j =  1:N2
+%          dist_all(i,j) = sum(d1(:,i) & d2(:,j))/(sum(d1(:,i))+sum(d2(:,j))); 
+%     end
+% end
+
+% Linear alegbra-based matching approach is much faster, especially in MATLAB.
+sumd1 = sum(d1);
+sumd2 = sum(d2);
+
+dist_all = d1' * d2 ./ bsxfun(@plus,sumd1',sumd2);
 
         [best,index2] = max(dist_all,[],2);
 
