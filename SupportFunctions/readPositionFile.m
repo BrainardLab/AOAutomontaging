@@ -2,7 +2,7 @@ function [imageFilename, eyeSide, pixelScale, LocXY, ID, NC, errorFlag] = readPo
 
 %defaults
 imageFilename = cell(MN,N);%stores all filenames
-pixelScale = ones(1,N); % Stores the relative size of our images
+pixelScale = NaN(1,N); % Stores the relative size of our images
 ID = cell(1,N);
 LocXY = nan(2,N);%set NaN to start
 NC = -1;%number of columns in the file
@@ -44,11 +44,12 @@ if strcmp(device_mode, 'multi_modal')
         end
         %match with info from excel
         for i = 1:size(C,1)
-            
             if (~isempty(strfind(inData{1,n}, C{i,1})))
                 
                 if(NC >= 4)
                     scale=str2double(strtrim(C{i,4}));
+                    
+                    
                     if(~isnan(scale) && scale>0)
                         pixelScale(n) = scale;
                     end
@@ -70,11 +71,15 @@ if strcmp(device_mode, 'multi_modal')
                         LocXY(:,n) = parseShorthandLoc(C{i,2},eyeSide);
                     end
                 end
-                if(isnan(LocXY(1,n)) || isnan(LocXY(2,n)))%check for errors
-                    errorFlag = ['Error: Location information missing or invalid for image ' ImageID_m1];
-                    return
-                end
+
                 break;
+            end
+        end
+        % If we can't find
+        if any(isnan(LocXY(:,n))) || isnan(pixelScale(n))
+            warning(['Error: Location information missing or invalid for image cluster: ' imageFilename{1,n}]);
+            for m = 1:MN
+                imageFilename{m,n} = [];
             end
         end
         

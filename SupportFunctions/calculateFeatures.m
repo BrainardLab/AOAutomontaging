@@ -22,33 +22,37 @@ for n=1:N
     if(parallelFlag)
         pixelScale_n = pixelScale(n);
         parfor m = 1:MN
-            im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale_n,'bilinear');
-            
-            if(featureType == 0)
-                [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
-            elseif(featureType == 1)
-                [f1,d1] = gridFeatures(im(:,:,1));
-            else
-                [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+            if ~isempty(imageFilename{m,n}) % If this file is blank, then that means we don't have valid information for it- skip it.
+                im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale_n,'bilinear');
+
+                if(featureType == 0)
+                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                elseif(featureType == 1)
+                    [f1,d1] = gridFeatures(im(:,:,1));
+                else
+                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                end
+
+                [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
+                f_all{m,n} = f1_crop;
+                d_all{m,n} = d1_crop;
             end
-            
-            [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
-            f_all{m,n} = f1_crop;
-            d_all{m,n} = d1_crop;
         end
     else
         for m = 1:MN
-            im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale(n),'bilinear');
-            if(featureType == 0)
-                [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
-            elseif(featureType == 1)
-                [f1,d1] = gridFeatures(im(:,:,1));
-            else
-                [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+            if ~isempty(imageFilename{m,n}) % If this file is blank, then that means we don't have valid information for it- skip it.
+                im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale(n),'bilinear');
+                if(featureType == 0)
+                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                elseif(featureType == 1)
+                    [f1,d1] = gridFeatures(im(:,:,1));
+                else
+                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                end
+                [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
+                f_all{m,n} = f1_crop;
+                d_all{m,n} = d1_crop;
             end
-            [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
-            f_all{m,n} = f1_crop;
-            d_all{m,n} = d1_crop;
         end
     end
     waitbar(n/(N),h,['Calculating ' FeatureName ' Features (' num2str(100*n/N,3) '%)']);
