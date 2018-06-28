@@ -51,13 +51,6 @@ outputMontageDir = '/Volumes/Users1/DropboxLab/AOSLOImageProcessing/AOAutomontag
 %
 outputAnalysisDir = '/Volumes/Users1/DropboxLab/AOSLOImageProcessing/AOAutomontagingAnalysisOutput';
 
-%% Put project toolbox onto path
-tbDeployToolboxes('config',tbToolboxRecord( ...
-    'name', 'AOMontagingSupportFunctions', ...
-    'type', 'local', ...
-    'url', fullfile(projectPath,'SupportFunctions')) ...
-    );
-
 %% Make output directories if necessary
 if (~exist(outputMontageDir,'dir'))
     mkdir(outputMontageDir);
