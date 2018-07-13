@@ -1,5 +1,5 @@
-function AOAutomontaging
-% AOAutomontaging
+function AOAutomontagingLocalHook
+% AOAutomontagingLocalHook
 %
 % Local hook template, toonfigure things for working on the AOAutomontaging project.
 %
