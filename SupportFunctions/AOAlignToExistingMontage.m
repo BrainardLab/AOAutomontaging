@@ -1,4 +1,4 @@
-function  [outNameList, TotalTransform, MatchedTo_Followup_to_Baseline] = AOAlignToExistingMontage(imageDir_Baseline, posFileLoc_Baseline, baselineMontageSaved, imageDir_Followup, posFileLoc_Followup, outputDir, device_mode, ModalitiesSrchStrings,TransType,featureType)
+function  [outNameList, TotalTransform, MatchedTo_Followup_to_Baseline] = AOAlignToExistingMontage(imageDir_Baseline, posFileLoc_Baseline, baselineMontageSaved, imageDir_Followup, posFileLoc_Followup, outputDir, device_mode, ModalitiesSrchStrings,TransType,featureType,fixedScale)
 %function for matching a followup montage onto a pre-built baseline montage
 %Inputs
 %imageDir_Baseline -- Image directory path for baseline images
@@ -38,7 +38,7 @@ parallelFlag = exist('parfor');
 [inData_Baseline, MN] = organizeDataByModality(imageDir_Baseline, ModalitiesSrchStrings);
 [inData_Followup, MN] = organizeDataByModality(imageDir_Followup, ModalitiesSrchStrings);
 
-MN = 1;
+MN = 3;
 
 %number of images in each
 N_Baseline = size(inData_Baseline,2);
@@ -58,6 +58,10 @@ ResultsTransformToRef = zeros(3,3,N_Followup,N_Baseline);
 %read position file
 [imageFilename_Baseline, eyeSide, pixelScale_Baseline, LocXY_Baseline, ID_Baseline, NC, errorFlag] = readPositionFile(imageDir_Baseline, inData_Baseline, posFileLoc_Baseline, device_mode, matchexp, MN, N_Baseline);
 [imageFilename_Followup, eyeSide, pixelScale_Followup, LocXY_Followup, ID_Followup, NC, errorFlag] = readPositionFile(imageDir_Followup, inData_Followup, posFileLoc_Followup, device_mode, matchexp, MN, N_Followup);
+
+if exist('fixedScale','var')
+    pixelScale_Followup(:) = fixedScale;
+end
 
 %catch errors
 if(errorFlag)
@@ -377,6 +381,11 @@ for m = 1:MN
     saveTif(rgba,outputDir,saveFileName);
     
 end
+
+save(fullfile(outputDir,'AOLongitudinalMontageSave'),'LocXY_Baseline','LocXY_Followup','TotalTransform', 'MatchedTo_Followup_to_Baseline','imageFilename_Followup',...
+    'imageFilename_Baseline','ResultsTransformToRef','ResultsScaleToRef');
+
+
 runtime=toc
 
 
