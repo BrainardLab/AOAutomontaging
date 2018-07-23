@@ -40,10 +40,12 @@ tic
 %Algorithm Parameters
 NumOkMatchesThresh = 10; %Threshold for number of SIFT matches needed before accepting the transformation
 matchexp = '_\d\d\d\d_ref_\d'; %String match that is expected to show up in the filename of each image. E.g. '_0018_ref_7_'
+%matchexp = '_\d\d\d\d\d_'; %String match that is expected to show up in the filename of each image. E.g. '_0018_ref_7_'
+
 if ~exist('featureType','var') || isempty(featureType)%default featuretype
     featureType=0;
 end
-
+ROICropPct = 0;
 
 
 %Load info from descriptor file
@@ -631,10 +633,17 @@ end
                 
                 rgba = repmat(im_(:,:,1),[1,1,2]);
                 rgba(:,:,2) = ~isnan(im_(:,:,1));
-                rgba = uint8(round(rgba*255));
-                
                 saveFileName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m),'.tif'];
-                saveTif(rgba,outputDir,saveFileName);
+
+                %we check the original type of the image and save
+                %accordingly
+                if(isa(im,'double') || isa(im,'single'))%if input is floating point, save as single
+                    saveTifDouble(single(rgba),outputDir,saveFileName);
+                else%else convert back to uint8 and save
+                    rgba = uint8(round(rgba*255));
+                    saveTif(rgba,outputDir,saveFileName);
+                end
+
                 
                 numWritten = numWritten+1;
                 waitbar(numWritten/(N*MN),h,strcat('Writing Outputs (',num2str(100*numWritten/(N*MN),3),'%)'));
