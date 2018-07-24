@@ -40,10 +40,12 @@ tic
 %Algorithm Parameters
 NumOkMatchesThresh = 10; %Threshold for number of SIFT matches needed before accepting the transformation
 matchexp = '_\d\d\d\d_ref_\d'; %String match that is expected to show up in the filename of each image. E.g. '_0018_ref_7_'
+%matchexp = '_\d\d\d\d\d_'; %String match that is expected to show up in the filename of each image. E.g. '_0018_ref_7_'
+
 if ~exist('featureType','var') || isempty(featureType)%default featuretype
     featureType=0;
 end
-
+ROICropPct = 0;
 
 
 %Load info from descriptor file
@@ -84,13 +86,13 @@ else
     saved = load(MontageSave,'LocXY','inData','TransType',...
         'ResultsNumOkMatches','ResultsNumMatches',...
         'ResultsTransformToRef','f_all','d_all','N', 'ResultsScaleToRef');
-        if(~isfield(saved,'TransType') || (saved.TransType ~= TransType))
-            choice = questdlg('Selected transformation type does not match that saved in AOMontageSave.mat. Proceed anyways?','Warning');
-            if(~isequal(choice,'Yes'))
-                outNameList = [];
-                return;
-            end
+    if(~isfield(saved,'TransType') || (saved.TransType ~= TransType))
+        choice = questdlg('Selected transformation type does not match that saved in AOMontageSave.mat. Proceed anyways?','Warning');
+        if(~isequal(choice,'Yes'))
+            outNameList = [];
+            return;
         end
+    end
     
     outputDir = fullfile(outputDir,'Append');
     mkdir(outputDir);
@@ -343,7 +345,7 @@ for i = 1: NumOfRefs
             im = imread(char(imageFilename{1,n}));
             im = imresize( im(:,:,1), pixelScale(n),'nearest' ); % we don't care what they look like, only how big they are
             H = TotalTransform(:,:,n);
-
+            
             %transform the 4 corners
             box = [1  size(im,2) size(im,2)  1 ;
                 1  1           size(im,1)  size(im,1) ;
@@ -351,7 +353,7 @@ for i = 1: NumOfRefs
             box_ = inv(H) * box ;
             box_(1,:) = box_(1,:) ./ box_(3,:) ;
             box_(2,:) = box_(2,:) ./ box_(3,:) ;
-
+            
             maxXRef(i) = max([maxXRef(i) box_(1,:)]);
             minXRef(i) = min([minXRef(i) box_(1,:)]);
             maxYRef(i) = max([maxYRef(i) box_(2,:)]);
@@ -455,9 +457,9 @@ minYAll =1000000000;
 for n = 1:N
     if ~isempty(imageFilename{1,n})
         im = imread(char(imageFilename{1,n}));
-        im = imresize( im(:,:,1), pixelScale(n),'nearest' ); % we don't care what they look like, only how big they are        
+        im = imresize( im(:,:,1), pixelScale(n),'nearest' ); % we don't care what they look like, only how big they are
         H = TotalTransform(:,:,n);
-
+        
         %transform the 4 corners
         box = [1  size(im,2) size(im,2)  1 ;
             1  1           size(im,1)  size(im,1) ;
@@ -465,7 +467,7 @@ for n = 1:N
         box_ = inv(H) * box ;
         box_(1,:) = box_(1,:) ./ box_(3,:) ;
         box_(2,:) = box_(2,:) ./ box_(3,:) ;
-
+        
         maxXAll = max([maxXAll box_(1,:)]);
         minXAll = min([minXAll box_(1,:)]);
         maxYAll = max([maxYAll box_(2,:)]);
@@ -579,7 +581,7 @@ if export_to_pshop
                     %Read each image, and then transform
                     im = imresize( imread(char(imageFilename{m,n})),pixelScale(n) ); % They need to be pretty for output! Keep it bicubic
                     H = TotalTransform(:,:,n);
-
+                    
                     if size(im,3) == 2
                         im=padarray(im, [length(vr) length(ur) 2]-size(im),0,'post');
                     else
@@ -590,9 +592,9 @@ if export_to_pshop
                     im_=imwarp(im,tform.invert(),'OutputView',imref2d(size(im)) );
                     
                     [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
-
+                    
                     loadednames{m} = name;
-
+                    
                     if size(im_,3) == 2
                         %add to combined image
                         nonzero = im_(:,:,2)>0;
@@ -600,23 +602,23 @@ if export_to_pshop
                         im_(:,:,1) = uint8(round(im_*255));
                         im_(:,:,2) = uint8(round(nonzero*255));
                     else
-                        im_ = im_(:,:,1);                    
+                        im_ = im_(:,:,1);
                         %add to combined image
                         nonzero = im_>0;
                         im_(:,:,1) = uint8(round(im_*255));
-                        im_(:,:,2) = uint8(round(nonzero*255));                         
+                        im_(:,:,2) = uint8(round(nonzero*255));
                     end
-                        
+                    
                     saveName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m)];
                     psnewlayer(saveName);
-
+                    
                     pssetpixels(im_(:,:,2),16);
                     pssetpixels(im_(:,:,1), 'undefined');
-
+                    
                     add_to_Photoshop_group(num2str(pixelScale(n),'%0.2f'),1) % FOV
                     add_to_Photoshop_group(ModalitiesSrchStrings{m},0) %Modality
                     add_to_Photoshop_group(group_directions{n},0) % Direction
-
+                    
                     numWritten = numWritten+1;
                     waitbar(numWritten/(N*MN),h,strcat('Writing to Photoshop (',num2str(100*numWritten/(N*MN),3),'%)'));
                 end
@@ -634,12 +636,12 @@ for m = 1:MN
     
     %initialize blank combined image of all pieces for the modality
     imCombinedAll = zeros(length(vr),length(ur), 'uint8');
-
+    
     for i = 1: NumOfRefs
         if ~isempty(imageFilename{m,AllRefIndex(i)})
             %initialize blank combined image for the modality/piece
             imCombined = zeros(length(vr),length(ur), 'uint8');
-
+            
             for n = RefChains{i}
                 if ~isempty(imageFilename{m,n})
                     %read each image, and then transform
@@ -652,13 +654,15 @@ for m = 1:MN
                     end
                     
                     H = TotalTransform(:,:,n);
-
+                    
                     tform = affine2d(H');
                     im_=imwarp(im,tform.invert(),'OutputView',imref2d(size(im)) );
                     
                     %save each individually transformed image
                     [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
-
+                    
+                    
+                    %we check the original type of the image and save accordingly
                     if size(im_,3) == 2
                         %add to combined image
                         nonzero = im_(:,:,2)>0;
@@ -667,43 +671,56 @@ for m = 1:MN
                         im_(:,:,1) = uint8(round(im_));
                         im_(:,:,2) = uint8(round(nonzero*255));
                     else
-                        im_ = im_(:,:,1);                    
-                        %add to combined image
+                        im_ = im_(:,:,1);
                         nonzero = im_>0;
                         imCombined(nonzero) = im_(nonzero);
                         im_(:,:,1) = uint8(round(im_));
                         im_(:,:,2) = uint8(round(nonzero*255));                         
                     end
-
+                    
+                    %add to combined image
+                    imCombined(nonzero) = im_(nonzero);
+                    
+                    %save
                     saveFileName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m),'.tif'];
-                    saveTif(im_,outputDir,saveFileName);
-
+                    
+                    if(isa(im,'double') || isa(im,'single'))%if input was floating point, save as single
+                        saveTifDouble(single(im_),outputDir,saveFileName);
+                    else%else save as uint8
+                        %convert if output file is currently floating,
+                        if (isa(im_,'double') || isa(im,'single'))
+                            im_(:,:,1) = uint8(round(im_*255));
+                            im_(:,:,2) = uint8(round(nonzero*255));
+                        end
+                        %otherwise save
+                        saveTif(im_,outputDir,saveFileName);
+                    end
+                    
                     numWritten = numWritten+1;
                     waitbar(numWritten/(N*MN),h,strcat('Writing Outputs (',num2str(100*numWritten/(N*MN),3),'%)'));
-
                 end
             end
         end
         
         %add to all combined image
-        nonzero = imCombined>0;        
+        nonzero = imCombined>0;
         imCombinedAll(nonzero) = imCombined(nonzero);
         imCombined(:,:,2) = round(nonzero*255);
         
         %save combined image for each piece - removed for memory concerns.
         if(NumOfRefs > 1)%only necessary if more than one piece
             saveFileName = strcat('ref_',num2str(i),'_combined_m',num2str(m),'.tif');
-
+            
             if(AppendToExisting)
                 outNameList{i+1,m}=fullfile('Append',saveFileName);
             else
                 outNameList{i+1,m}=saveFileName;
             end
-
+            
             saveTif(imCombined,outputDir,saveFileName);
         end
     end
-
+    
     %save the combined image of all the pieces
     saveFileName = strcat('all_ref_combined_m',num2str(m),'.tif');
     if(AppendToExisting)
@@ -711,10 +728,10 @@ for m = 1:MN
     else
         outNameList{1,m}=saveFileName;
     end
-
+    
     nonzero = imCombinedAll>0;
     imCombinedAll(:,:,2) = round(nonzero*255);
-
+    
     saveTif(imCombinedAll,outputDir,saveFileName);
     
 end
