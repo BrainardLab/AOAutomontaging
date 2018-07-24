@@ -627,7 +627,7 @@ if export_to_pshop
     end
 end
 
-% save tmp.mat;
+save tmp.mat;
 %%
 
 for m = 1:MN
@@ -664,14 +664,14 @@ for m = 1:MN
                         nonzero = im_(:,:,2)>0;
                         im_ = im_(:,:,1);
                         imCombined(nonzero) = im_(nonzero);
-                        im_(:,:,1) = uint8(round(im_*255));
+                        im_(:,:,1) = uint8(round(im_));
                         im_(:,:,2) = uint8(round(nonzero*255));
                     else
                         im_ = im_(:,:,1);                    
                         %add to combined image
                         nonzero = im_>0;
                         imCombined(nonzero) = im_(nonzero);
-                        im_(:,:,1) = uint8(round(im_*255));
+                        im_(:,:,1) = uint8(round(im_));
                         im_(:,:,2) = uint8(round(nonzero*255));                         
                     end
 
