@@ -596,17 +596,18 @@ if export_to_pshop
                     loadednames{m} = name;
                     
                     if size(im_,3) == 2
-                        %add to combined image
                         nonzero = im_(:,:,2)>0;
                         im_ = im_(:,:,1);
+                    else                        
+                        nonzero = im_>0;                            
+                    end
+                    
+                    if(isa(im,'double') || isa(im,'single'))
                         im_(:,:,1) = uint8(round(im_*255));
-                        im_(:,:,2) = uint8(round(nonzero*255));
+                        im_(:,:,2) = uint8(round(nonzero*255)); 
                     else
-                        im_ = im_(:,:,1);
-                        %add to combined image
-                        nonzero = im_>0;
-                        im_(:,:,1) = uint8(round(im_*255));
-                        im_(:,:,2) = uint8(round(nonzero*255));
+                        im_(:,:,1) = uint8(round(im_));
+                        im_(:,:,2) = uint8(round(nonzero*255)); 
                     end
                     
                     saveName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m)];
@@ -660,39 +661,27 @@ for m = 1:MN
                     
                     %save each individually transformed image
                     [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
-                    
-                    
-                    %we check the original type of the image and save accordingly
+
                     if size(im_,3) == 2
-                        %add to combined image
                         nonzero = im_(:,:,2)>0;
                         im_ = im_(:,:,1);
-                        imCombined(nonzero) = im_(nonzero);
-                        im_(:,:,1) = uint8(round(im_));
-                        im_(:,:,2) = uint8(round(nonzero*255));
-                    else
-                        im_ = im_(:,:,1);
-                        nonzero = im_>0;
-                        imCombined(nonzero) = im_(nonzero);
-                        im_(:,:,1) = uint8(round(im_));
-                        im_(:,:,2) = uint8(round(nonzero*255));                         
+                    else                        
+                        nonzero = im_>0;                            
                     end
-                    
+                                                
                     %add to combined image
                     imCombined(nonzero) = im_(nonzero);
-                    
+
                     %save
                     saveFileName=[name,'_aligned_to_ref',num2str(i),'_m',num2str(m),'.tif'];
                     
                     if(isa(im,'double') || isa(im,'single'))%if input was floating point, save as single
+                        im_(:,:,2) = nonzero; 
                         saveTifDouble(single(im_),outputDir,saveFileName);
                     else%else save as uint8
-                        %convert if output file is currently floating,
-                        if (isa(im_,'double') || isa(im,'single'))
-                            im_(:,:,1) = uint8(round(im_*255));
-                            im_(:,:,2) = uint8(round(nonzero*255));
-                        end
-                        %otherwise save
+                        im_(:,:,1) = uint8(round(im_));
+                        im_(:,:,2) = uint8(round(nonzero*255)); 
+
                         saveTif(im_,outputDir,saveFileName);
                     end
                     
