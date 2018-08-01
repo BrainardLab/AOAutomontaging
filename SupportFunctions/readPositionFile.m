@@ -38,7 +38,7 @@ if strcmp(device_mode, 'multi_modal')
             imageFilename{m,n} = fullfile(imageDir, inData{m,n});
             ImageID_mf = regexpi(inData{m,n},matchexp,'match');
             if(~strcmpi(ImageID_m1,ImageID_mf))%check for errors
-                errorFlag = ['Error: Mismatch detected. Every image number must have the same number of modalities. Check image ' ImageID_m1];
+                errorFlag = ['Error: Mismatch detected. Every image number must have the same number of modalities. Check image ' cell2mat(ImageID_m1)];
                 return;
             end
         end
