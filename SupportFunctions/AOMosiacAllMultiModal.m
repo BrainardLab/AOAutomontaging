@@ -69,7 +69,7 @@ ResultsTransformToRef = zeros(3,3,N,N);
 %read position file
 [imageFilename, eyeSide, pixelScale, LocXY, ID, NC, errorFlag] = readPositionFile(imageDir, inData, posFileLoc, device_mode, matchexp, MN, N);
 %catch errors
-if(errorFlag)
+if ischar(errorFlag)
     errordlg(errorFlag);
     outNameList = [];
     return
@@ -580,13 +580,16 @@ if export_to_pshop
                 if ~isempty(imageFilename{m,n})
                     %Read each image, and then transform
                     im = imresize( imread(char(imageFilename{m,n})),pixelScale(n) ); % They need to be pretty for output! Keep it bicubic
-                    H = TotalTransform(:,:,n);
                     
                     if size(im,3) == 2
                         im=padarray(im, [length(vr) length(ur) 2]-size(im),0,'post');
                     else
                         im=padarray(im, [length(vr) length(ur)]-size(im),0,'post');
                     end
+                    
+                    H = TotalTransform(:,:,n);
+                    H(1,3) = H(1,3)+minXAll;
+                    H(2,3) = H(2,3)+minYAll;
                     
                     tform = affine2d(H');
                     im_=imwarp(im,tform.invert(),'OutputView',imref2d(size(im)) );
@@ -630,7 +633,7 @@ if export_to_pshop
     end
 end
 
-% save tmp.mat;
+%  save tmp.mat;
 %%
 
 for m = 1:MN
@@ -655,6 +658,8 @@ for m = 1:MN
                     end
                     
                     H = TotalTransform(:,:,n);
+                    H(1,3) = H(1,3)+minXAll;
+                    H(2,3) = H(2,3)+minYAll;
                     
                     tform = affine2d(H');
                     im_=imwarp(im,tform.invert(),'OutputView',imref2d(size(im)) );
