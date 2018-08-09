@@ -497,6 +497,7 @@ save(fullfile(outputDir,'AOMontageSave'),'LocXY','inData','TransType',...
     'RelativeTransformToRef');
 
 %% Determine the dominant direction of each shifted image
+Global=[1 0 0; 0 1 0;-minXAll -minYAll 1];
 if export_to_pshop
     group_directions = cell(NumOfRefs,1);
     for i = 1: NumOfRefs
@@ -588,11 +589,11 @@ if export_to_pshop
                     end
                     
                     H = TotalTransform(:,:,n);
-                    H(1,3) = H(1,3)+minXAll;
-                    H(2,3) = H(2,3)+minYAll;
-                    
-                    tform = affine2d(H');
-                    im_=imwarp(im,tform.invert(),'OutputView',imref2d(size(im)) );
+                    H = inv(H');
+                    H(:,3)=[0;0;1];
+                  
+                    tform = affine2d(H*Global);
+                    im_=imwarp(im, imref2d(size(im)), tform,'OutputView', imref2d(size(im)));
                     
                     [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
                     
@@ -633,7 +634,7 @@ if export_to_pshop
     end
 end
 
-%  save tmp.mat;
+% save tmp.mat;
 %%
 
 for m = 1:MN
@@ -650,19 +651,13 @@ for m = 1:MN
                 if ~isempty(imageFilename{m,n})
                     %read each image, and then transform
                     im = imresize( imread(char(imageFilename{m,n})),pixelScale(n) );
-                    
-                    if size(im,3) == 2
-                        im=padarray(im, [size(imCombined) 2]-size(im),0,'post');
-                    else
-                        im=padarray(im, size(imCombined)-size(im),0,'post');
-                    end
-                    
+
                     H = TotalTransform(:,:,n);
-                    H(1,3) = H(1,3)+minXAll;
-                    H(2,3) = H(2,3)+minYAll;
-                    
-                    tform = affine2d(H');
-                    im_=imwarp(im,tform.invert(),'OutputView',imref2d(size(im)) );
+                    H = inv(H');
+                    H(:,3)=[0;0;1];
+                  
+                    tform = affine2d(H*Global);
+                    im_=imwarp(im, imref2d(size(im)), tform,'OutputView', imref2d(size(imCombined)));
                     
                     %save each individually transformed image
                     [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;
