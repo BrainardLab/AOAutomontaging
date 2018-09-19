@@ -636,7 +636,7 @@ end
 
 
 %save tmp.mat;
-
+%%
 for m = 1:MN
     
     %initialize blank combined image of all pieces for the modality
@@ -686,7 +686,7 @@ for m = 1:MN
                     end
                     
                     numWritten = numWritten+1;
-                    waitbar(numWritten/(N*MN),h,strcat('Writing Outputs (',num2str(100*numWritten/(N*MN),3),'%)'));
+                    waitbar(numWritten./N*MN,h,['Writing Outputs (',num2str(100*numWritten./(N*MN),3),'%)']);
                 end
             end
         end
