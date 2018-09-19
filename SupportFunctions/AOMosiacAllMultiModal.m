@@ -634,7 +634,11 @@ if export_to_pshop
     end
 end
 
+<<<<<<< HEAD
 %save tmp.mat;
+=======
+save tmp.mat;
+>>>>>>> ea4e4c1efe1cf4bd74e87a1b95ac2c22a46aa844
 %%
 
 for m = 1:MN
