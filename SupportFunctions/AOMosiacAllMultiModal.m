@@ -350,7 +350,7 @@ for i = 1: NumOfRefs
             box = [1  size(im,2) size(im,2)  1 ;
                 1  1           size(im,1)  size(im,1) ;
                 1  1           1            1 ] ;
-            box_ = inv(H) * box ;
+            box_ = pinv(H) * box ;
             box_(1,:) = box_(1,:) ./ box_(3,:) ;
             box_(2,:) = box_(2,:) ./ box_(3,:) ;
             
@@ -464,7 +464,7 @@ for n = 1:N
         box = [1  size(im,2) size(im,2)  1 ;
             1  1           size(im,1)  size(im,1) ;
             1  1           1            1 ] ;
-        box_ = inv(H) * box ;
+        box_ = pinv(H) * box ;
         box_(1,:) = box_(1,:) ./ box_(3,:) ;
         box_(2,:) = box_(2,:) ./ box_(3,:) ;
         
@@ -589,7 +589,7 @@ if export_to_pshop
                     end
                     
                     H = TotalTransform(:,:,n);
-                    H = inv(H');
+                    H = pinv(H');
                     H(:,3)=[0;0;1];
                   
                     tform = affine2d(H*Global);
@@ -634,7 +634,7 @@ if export_to_pshop
     end
 end
 
-% save tmp.mat;
+%save tmp.mat;
 %%
 
 for m = 1:MN
@@ -653,7 +653,7 @@ for m = 1:MN
                     im = imresize( imread(char(imageFilename{m,n})),pixelScale(n) );
 
                     H = TotalTransform(:,:,n);
-                    H = inv(H');
+                    H = pinv(H');
                     H(:,3)=[0;0;1];
                   
                     tform = affine2d(H*Global);
