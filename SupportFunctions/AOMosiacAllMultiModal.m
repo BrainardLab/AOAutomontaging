@@ -237,6 +237,7 @@ while (sum(Matched) < N)
                                     ',',num2str(LocXY(2,refIndex)),')','.jpg');
                                 
                                 saveMatchesName=fullfile(outputDir,saveMatchesName);
+                                
                                 [relativeTransform, numOkMatches, numMatches, bestScale]=sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,0,f_all(:,refIndex),d_all(:,refIndex),f_all(:,n),d_all(:,n),TransType,[],featureType);
                                 
                                 ResultsNumOkMatches(n,refIndex) = numOkMatches;
@@ -407,13 +408,17 @@ for i = 1:NumOfRefs %ToDo: not very efficient... but small number of pieces in g
     ind = find(CoMX == CoMX(i));%find where location matches exactly
     maxXRef(ind) = max(maxXRef(ind));%set to max
     minXRef(ind) = min(minXRef(ind));%set to min
-    
+
     ind = find(CoMY == CoMY(i));%find where location matches exactly
     maxYRef(ind) = max(maxYRef(ind));%set to max
     minYRef(ind) = min(minYRef(ind));%set to min
 end
 
+minXRef(isnan(CoMX)) = min(minXRef(~isnan(CoMX)));
+minYRef(isnan(CoMY)) = min(minYRef(~isnan(CoMY)));
 
+maxXRef(isnan(maxXRef)) = max(maxXRef(~isnan(CoMX)));
+maxYRef(isnan(CoMY)) = max(maxYRef(~isnan(CoMY)));
 
 for s = 2:NumOfRefs %no need to translate the first one, start at 2
     
@@ -421,23 +426,26 @@ for s = 2:NumOfRefs %no need to translate the first one, start at 2
     %add width and pad for all previous pieces that do not share a number
     %The center of each piece starts at the same location (0,0), so the width we add is
     %max loc of the bounding of the previous image, and subtract min loc of the current image
-    if(CoMX(refOrderX_I(s)) == CoMX(refOrderX_I(s-1)))%if same location as previous, use previous translation
-        refGlobalTransX(refOrderX_I(s)) = refGlobalTransX(refOrderX_I(s-1));
-        
-    else%if different location, then use previous translation + max loc of previous location + pad - min loc of own
-        refGlobalTransX(refOrderX_I(s)) = refGlobalTransX(refOrderX_I(s-1)) ...
-            + maxXRef(refOrderX_I(s-1)) - minXRef(refOrderX_I(s)) + pad;
+    if ~isnan( CoMX(refOrderX_I(s)) )
+        if(CoMX(refOrderX_I(s)) == CoMX(refOrderX_I(s-1))) %if same location as previous, use previous translation
+            refGlobalTransX(refOrderX_I(s)) = refGlobalTransX(refOrderX_I(s-1));
+
+        else%if different location, then use previous translation + max loc of previous location + pad - min loc of own
+            refGlobalTransX(refOrderX_I(s)) = refGlobalTransX(refOrderX_I(s-1)) ...
+                + maxXRef(refOrderX_I(s-1)) - minXRef(refOrderX_I(s)) + pad;
+        end
     end
-    
-    if(CoMY(refOrderY_I(s)) == CoMY(refOrderY_I(s-1)))
-        refGlobalTransY(refOrderY_I(s)) = refGlobalTransY(refOrderY_I(s-1));
-    else
-        refGlobalTransY(refOrderY_I(s)) = refGlobalTransY(refOrderY_I(s-1)) ...
-            + maxYRef(refOrderY_I(s-1)) - minYRef(refOrderY_I(s)) + pad;
+    if ~isnan( CoMY(refOrderY_I(s)) )
+        if(CoMY(refOrderY_I(s)) == CoMY(refOrderY_I(s-1)))
+            refGlobalTransY(refOrderY_I(s)) = refGlobalTransY(refOrderY_I(s-1));
+        else
+            refGlobalTransY(refOrderY_I(s)) = refGlobalTransY(refOrderY_I(s-1)) ...
+                + maxYRef(refOrderY_I(s-1)) - minYRef(refOrderY_I(s)) + pad;
+        end
     end
 end
 
-%Now adjust each transformation according to which piece they're in
+%%Now adjust each transformation according to which piece they're in
 for i = 1: NumOfRefs
     refGlobalTrans = eye(3,3);
     refGlobalTrans(1,3) = -refGlobalTransX(i); %these are pullback transforms, so negative of the distance you want to move
@@ -448,7 +456,7 @@ for i = 1: NumOfRefs
 end
 
 
-%calculate global bounding box
+%%calculate global bounding box
 maxXAll =-1000000000;
 minXAll =1000000000;
 maxYAll =-1000000000;
@@ -475,7 +483,7 @@ for n = 1:N
     end
 end
 
-%this is the image grid to output
+%%this is the image grid to output
 ur = minXAll:maxXAll;
 vr = minYAll:maxYAll;
 % [u,v] = meshgrid(ur,vr) ;
