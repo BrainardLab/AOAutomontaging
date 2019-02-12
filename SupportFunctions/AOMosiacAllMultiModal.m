@@ -52,7 +52,12 @@ ROICropPct = 0;
 parallelFlag = exist('parfor');
 
 %load data
-[inData, MN] = organizeDataByModality(imageDir, ModalitiesSrchStrings);
+[inData, MN, errorFlag] = organizeDataByModality(imageDir, ModalitiesSrchStrings);
+if(errorFlag)
+    errordlg(errorFlag);
+    outNameList = [];
+    return
+end
 N = size(inData,2);
 
 %initialize all variables
@@ -519,16 +524,16 @@ if export_to_pshop
             
             if ind==1
                 if sign(H(ind,3)) == 1
-                    if strcmpi(eyeSide,'os')
+                    if strcmpi(eyeSide(i),'os')
                         group_directions{n} = 'Temporal';
-                    elseif strcmpi(eyeSide,'od')
+                    elseif strcmpi(eyeSide(i),'od')
                         group_directions{n} = 'Nasal';
                         
                     end
                 else
-                    if strcmpi(eyeSide,'os')
+                    if strcmpi(eyeSide(i),'os')
                         group_directions{n} = 'Nasal';
-                    elseif strcmpi(eyeSide,'od')
+                    elseif strcmpi(eyeSide(i),'od')
                         group_directions{n} = 'Temporal';
                     end
                 end
