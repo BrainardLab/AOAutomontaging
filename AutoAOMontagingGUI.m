@@ -64,7 +64,7 @@ handles.postionFile_name=[];
 handles.imgfolder_name=[];
 handles.imageFile_names=[];
 handles.modalitiesInfo = {'Confocal' 'confocal';
-    'Split Detection' 'split';
+    'Split Detection' 'split_det';
     'Dark Field' 'avg';
     'Modality 4' '';
     'Modality 5' '';};
@@ -195,6 +195,7 @@ elseif strcmp(handles.device_mode, 'canon')
     dataSummary{end+1} =[num2str(size(found,2)),' image(s) found.'];
 end
 
+
 msgbox(dataSummary,'Input Complete');
 
 
@@ -209,7 +210,8 @@ function selectPosFile_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 defaultfolder = handles.imgfolder_name;
-[FileName,PathName] = uigetfile(fullfile(defaultfolder,'*.xlsx'));
+[FileName,PathName] = uigetfile({ '*.csv', 'LUT Files (*.csv)'; '*.xlsx', 'Legacy LUT Format (*.xlsx)' }, ...
+                                'Select LUT file:', defaultfolder);
 handles.postionFile_name = fullfile(PathName,FileName);
 set(handles.posFileText, 'String', handles.postionFile_name);
 set(handles.posFileText, 'TooltipString', handles.postionFile_name);
@@ -380,7 +382,7 @@ prompt = {'Filename substrings for identifying each modality:','Image extension:
 dlg_title = 'Input';
 num_lines = [5 50;1 10];
 %defaultsettings = {char({'confocal';'split';'avg';''});'.tif'};
-defaultsettings = {'confocal\nsplit\navg\n','.tif'};
+defaultsettings = {'confocal\nsplit_det\navg\n','.tif'};
 
 Title = 'Input Settings';
 
@@ -440,7 +442,7 @@ set(handles.selectPosFile, 'Enable','on');
 set(handles.inputsettings,'Enable','on');
 
 handles.modalitiesInfo = {'Confocal' 'confocal';
-                          'Split Detection' 'split';
+                          'Split Detection' 'split_det';
                           'Dark Field' 'avg';
                           'Modality 4' '';
                           'Modality 5' '';};
