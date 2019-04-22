@@ -1,4 +1,4 @@
-function [f_all, d_all, h] = calculateFeatures(imageFilename, parallelFlag, pixelScale, featureType, MN, N,BPFilterFlags,CNNFlags,w,g)
+function [f_all, d_all, Loc_Index] = calculateFeatures_Debug(imageFilename, parallelFlag, pixelScale, featureType, MN, N,BPFilterFlags,CNNFlags,w,g,Loc_Index,LocLossPct)
 %Calculate features for all images listed in imageFilename
 
 %feature parameters
@@ -11,8 +11,6 @@ d_all = cell(MN,N);
 
 if (featureType == 0)
     FeatureName = 'SIFT';
-    w=0;
-    g=0;
 elseif (featureType == 1)
     FeatureName = 'Constellation';
 end
@@ -39,9 +37,14 @@ if(sum(CNNFlags)>0) %Can't parallel process if using CNN
     parallelFlag = 0;
 end
 
+if (~exist('Loc_Index','var') || isempty(Loc_Index))
+    Loc_Index = cell(MN,N);
+end
 
+%TODO: Right now the direct lcoation input is not modality specific, same
+%values gets set for all modalities
 
-h = waitbar(0,['Calculating ' FeatureName ' Features (0%)']);
+%h = waitbar(0,['Calculating ' FeatureName ' Features (0%)']);
 for n=1:N
     if(parallelFlag)
         pixelScale_n = pixelScale(n);
@@ -52,11 +55,7 @@ for n=1:N
                 if(featureType == 0)
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 elseif(featureType == 1)
-                        [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),0,w,g);%use bandpassfilter if split, can't use CNN if parallel processing
-                        [filepath,BaseName] = fileparts(imageFilename{m,n});
-                        imageSize = size(im);
-                        SaveName = fullfile(filepath,'ConeLocations',[BaseName '.mat']);
-                        save(SaveName,'CNNPos','imageSize');
+                        [f1,d1] = gridFeatures(im(:,:,1),BPFilterFlags(m),0,w,g,Loc_Index{m,n},LocLossPct);%use bandpassfilter if split, can't use CNN if parallel processing
                 else
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 end
@@ -73,22 +72,18 @@ for n=1:N
                 if(featureType == 0)
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 elseif(featureType == 1)
-                    [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),CNNFlags(m),CNNParams{m},w,g);%use CNN
-                    [filepath,BaseName] = fileparts(imageFilename{m,n});
-                    imageSize = size(im);
-                    mkdir(fullfile(filepath,'ConeLocations'));
-                    SaveName = fullfile(filepath,'ConeLocations',[BaseName '.mat']);
-                    save(SaveName,'CNNPos','imageSize');
+                    [f1,d1,Loc_Index_m_n] = gridFeatures(im(:,:,1),BPFilterFlags(m),CNNFlags(m),CNNParams{m},w,g,Loc_Index{m,n},LocLossPct);%use CNN
                 else
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 end
                 [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                 f_all{m,n} = f1_crop;
                 d_all{m,n} = d1_crop;
+                Loc_Index{m,n} = Loc_Index_m_n;
             end
         end
     end
-    waitbar(n/(N),h,['Calculating ' FeatureName ' Features (' num2str(100*n/N,3) '%)']);
+%    waitbar(n/(N),h,['Calculating ' FeatureName ' Features (' num2str(100*n/N,3) '%)']);
 end
 
 

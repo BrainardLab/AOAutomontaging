@@ -1,4 +1,4 @@
-function [bestH, numOkMatches_all, numMatches_all, bestScale]= sift_mosaic_fast_MultiModal(im1, im2, saveDir,saveFlag,f1,d1,f2,d2,TransType,rotLimit,featureType)
+function [bestH, numOkMatches_all, numMatches_all, bestScale]= sift_mosaic_fast_MultiModal(im1, im2, saveDir,saveFlag,f1,d1,f2,d2,TransType,rotLimit,featureType,modalitiesToUse)
 % Matches two images using given precalculated SIFT features
 %Input:
 %im1 -- Reference Image
@@ -50,6 +50,11 @@ end
 %saveDir='C:\Users\dontm\Downloads\temp\New folder (7)';
 
 MN = size(f1,1);
+MRange=1:MN;%modalities to include in RANSAC
+
+if(exist('modalitiesToUse','var') && find(modalitiesToUse,1,'last')<=MN)
+    MRange = find(modalitiesToUse,1,'first'):find(modalitiesToUse,1,'last');
+end
 
 %check if either image had zero features, exit with no matches if so
 total_f1 = 0;
@@ -72,7 +77,7 @@ X1 = [];
 X2 = [];
 matches = cell(MN,1);
 numMatches = zeros(MN,1);
-for m = 1:MN
+for m = MRange
     
     if(featureType==0)
         [matches_m, scores] = vl_ubcmatch_fast(d1{m},d2{m});
@@ -230,15 +235,17 @@ end
 % --------------------------------------------------------------------
 %                                                         Show matches
 % --------------------------------------------------------------------
-if(saveFlag)
+if(saveFlag>=1)
     %[saveDir,name,ext] = fileparts(saveMatchesName);
-     colorRGB = [51/255 153/255 255/255];
-     f1_ok = f1{1}(1:2,matches{1}(1,bestOK{1}));
-     f2_ok = f2{1}(1:2,matches{1}(2,bestOK{1}));
-     d1_ok = d1{1}(1:2,matches{1}(1,bestOK{1}));
-     d2_ok = d2{1}(1:2,matches{1}(2,bestOK{1}));
-     colorRGB2 = [255/255 153/255 0/255];
-     k=9
+    colorRGB = [51/255 153/255 255/255];
+    %    f1_ok = f1{1}(1:2,matches{1}(1,bestOK{1}));
+    %    f2_ok = f2{1}(1:2,matches{1}(2,bestOK{1}));
+    %    d1_ok = d1{1}(1:2,matches{1}(1,bestOK{1}));
+    %    d2_ok = d2{1}(1:2,matches{1}(2,bestOK{1}));
+    colorRGB2 = [255/255 0/255 0/255];
+    colorRGB3 = [0/255 255/255 0/255];
+    
+    k=9;
     figID=figure(1) ; clf ;
     title(sprintf('%d total tentative matches', numMatches_all)) ;
     title(sprintf('%d (%.2f%%) total inliner matches out of %d', ...
@@ -247,7 +254,7 @@ if(saveFlag)
         numMatches_all)) ;
     
     
-    for m = 1:MN
+    for m = MRange
         dh1 = max(size(im2{m},1)-size(im1{m},1),0) ;
         dh2 = max(size(im1{m},1)-size(im2{m},1),0) ;
         %plot all matches
@@ -261,15 +268,15 @@ if(saveFlag)
         if(numMatches(m) > 0)
             line([f1{m}(1,matches{m}(1,:));f2{m}(1,matches{m}(2,:))+o], ...
                 [f1{m}(2,matches{m}(1,:));f2{m}(2,matches{m}(2,:))],'color',colorRGB,'LineWidth',2) ;
-           % line([f1_ok(1,k);f2_ok(1,k)+o], ...
+            % line([f1_ok(1,k);f2_ok(1,k)+o], ...
             %    [f1_ok(2,k);f2_ok(2,k)],'color',colorRGB2,'LineWidth',2) ;
-
+            
         end
         title(sprintf('%d tentative matches', numMatches(m))) ;
         axis image off ;
         colormap('gray')
         set(gca,'LooseInset',get(gca,'TightInset'));
-        saveMatchesName=['SIFTmatches_m' num2str(m) '.bmp'];
+        saveMatchesName=['AllMatches_m' num2str(m) '.bmp'];
         saveas(figID1,fullfile(saveDir,saveMatchesName))
         
         %plot inlier matches
@@ -281,9 +288,9 @@ if(saveFlag)
         if(max(bestOK{m}) > 0)
             line([f1{m}(1,matches{m}(1,bestOK{m}));f2{m}(1,matches{m}(2,bestOK{m}))+o], ...
                 [f1{m}(2,matches{m}(1,bestOK{m}));f2{m}(2,matches{m}(2,bestOK{m}))],'color',colorRGB,'LineWidth',2) ;
-           % line([f1_ok(1,k);f2_ok(1,k)+o], ...
+            % line([f1_ok(1,k);f2_ok(1,k)+o], ...
             %    [f1_ok(2,k);f2_ok(2,k)],'color',colorRGB2,'LineWidth',2) ;
-
+            
         end
         title(sprintf('%d (%.2f%%) inliner matches out of %d', ...
             sum(bestOK{m}), ...
@@ -296,62 +303,92 @@ if(saveFlag)
         saveMatchesName=['RANSACMatches_m' num2str(m) '.bmp'];
         saveas(figID2,fullfile(saveDir,saveMatchesName))
         
-        %plot select areas
-%         figID3 = figure(1);
-%         imOut = [padarray(im1{m}(:,:,1),[dh1 gapSize],255,'post') padarray(im2{m}(:,:,1),dh2,255,'post')];
-%         imagesc(imOut);
-%         caxis([min(min(min(im1{m})),min(min(im2{m}))) max(max(max(im1{m})),max(max(im2{m})))]);
-%         o = size(im1{m},2) + gapSize;
-%         w = 75;
-%         h = 50;
-%         if(max(bestOK{2}) > 0)
-%             
-%             f1_ok = f1{2}(1:2,matches{2}(1,bestOK{2}));
-%             f2_ok = f2{2}(1:2,matches{2}(2,bestOK{2}));
-%             
-%             for q = [3 10] 1:length(f1_ok)
-%                 q
-%                 if(q == 3)
-%                     colorRGB = [255/255 153/255 0/255];
-%              %   elseif(q == 12)
-%              %       colorRGB = [255/255 0/255 0/255];
-%                 else
-%                   colorRGB = [51/255 153/255 255/255];
-%                 end
-%                 posA = [f1_ok(1,q)-w f1_ok(2,q)-h 2*w+1 2*h+1];
-%                 rectangle('Position',posA,'EdgeColor',colorRGB,'LineWidth',2);
-%                 x_range = round(f1_ok(1,q)-w):round(f1_ok(1,q)+w);
-%                 y_range = round(f1_ok(2,q)-h):round(f1_ok(2,q)+h);
-%                 im_recA = imOut(y_range,x_range);
-%                 posB = [f2_ok(1,q)+o-w f2_ok(2,q)-h 2*w+1 2*h+1];
-%                 rectangle('Position',posB,'EdgeColor',colorRGB,'LineWidth',2);
-%                 x_range = round(f2_ok(1,q)-w+o):round(f2_ok(1,q)+w+o);
-%                 y_range = round(f2_ok(2,q)-h):round(f2_ok(2,q)+h);
-%                 im_recB = imOut(y_range,x_range);
-%                 imwrite(im_recA,fullfile(saveDir,['imA_rect' num2str(q) '_m' num2str(m) '_.tif']))
-%                 imwrite(im_recB,fullfile(saveDir,['imB_rect' num2str(q) '_m' num2str(m) '_.tif']))
-% 
-%                 if (m == 4)
-%                     imA_grid=convertToGrid(im_recA,w,5);
-%                     imB_grid=convertToGrid(im_recB,w,5);
-%                     imwrite(imA_grid,fullfile(saveDir,['imA_rect' num2str(q) '_m' num2str(m) '_grid_.tif']))
-%                     imwrite(imB_grid,fullfile(saveDir,['imB_rect' num2str(q) '_m' num2str(m) '_grid_.tif']))
-%                     figure(5);clf
-%                     imshowpair(imA_grid,imB_grid);
-%                 end                
-%                 %            line([f1{m}(1,matches{m}(1,bestOK{m}));f2{m}(1,matches{m}(2,bestOK{m}))+o], ...
-%                 %                [f1{m}(2,matches{m}(1,bestOK{m}));f2{m}(2,matches{m}(2,bestOK{m}))]) ;
-%             end
-%         end
-%         title('matching areas');
-%         axis image off ;
-%         colormap('gray')
-%         
-%         set(gca,'LooseInset',get(gca,'TightInset'));
-%         saveMatchesName=['MatchedAreas_m' num2str(m) '.bmp'];
-%         saveas(figID2,fullfile(saveDir,saveMatchesName))
+        %plot location of features
+        figID2 = figure(1);
+        imOut = [padarray(im1{m}(:,:,1),[dh1 gapSize],255,'post') padarray(im2{m}(:,:,1),dh2,255,'post')];
+        imagesc(imOut);
+        caxis([min(min(min(im1{m}(:,:,1))),min(min(im2{m}(:,:,1)))) max(max(max(im1{m}(:,:,1))),max(max(im2{m}(:,:,1))))]);
+        o = size(im1{m},2) + gapSize;
+        hold on
+        scatter([f1{m}(1,:) (f2{m}(1,:)+o)], ...
+            [f1{m}(2,:) (f2{m}(2,:))],2,colorRGB) ;
         
-     end
+        if(max(bestOK{m}) > 0)
+            scatter([f1{m}(1,matches{m}(1,bestOK{m})) (f2{m}(1,matches{m}(2,bestOK{m}))+o)], ...
+                [f1{m}(2,matches{m}(1,bestOK{m})) f2{m}(2,matches{m}(2,bestOK{m}))],2,colorRGB2) ;
+            % line([f1_ok(1,k);f2_ok(1,k)+o], ...
+            %    [f1_ok(2,k);f2_ok(2,k)],'color',colorRGB2,'LineWidth',2) ;
+            
+        end
+        
+        
+        hold off
+        % line([f1_ok(1,k);f2_ok(1,k)+o], ...
+        %    [f1_ok(2,k);f2_ok(2,k)],'color',colorRGB2,'LineWidth',2) ;
+        title(sprintf('feature locations')) ;
+        axis image off ;
+        colormap('gray')
+        
+        set(gca,'LooseInset',get(gca,'TightInset'));
+        saveMatchesName=['FeatureLocations_m' num2str(m) '.bmp'];
+        saveas(figID2,fullfile(saveDir,saveMatchesName))
+        
+        %plot select areas
+        %         figID3 = figure(1);
+        %         imOut = [padarray(im1{m}(:,:,1),[dh1 gapSize],255,'post') padarray(im2{m}(:,:,1),dh2,255,'post')];
+        %         imagesc(imOut);
+        %         caxis([min(min(min(im1{m})),min(min(im2{m}))) max(max(max(im1{m})),max(max(im2{m})))]);
+        %         o = size(im1{m},2) + gapSize;
+        %         w = 75;
+        %         h = 50;
+        %         if(max(bestOK{2}) > 0)
+        %
+        %             f1_ok = f1{2}(1:2,matches{2}(1,bestOK{2}));
+        %             f2_ok = f2{2}(1:2,matches{2}(2,bestOK{2}));
+        %
+        %             for q = [3 10] 1:length(f1_ok)
+        %                 q
+        %                 if(q == 3)
+        %                     colorRGB = [255/255 153/255 0/255];
+        %              %   elseif(q == 12)
+        %              %       colorRGB = [255/255 0/255 0/255];
+        %                 else
+        %                   colorRGB = [51/255 153/255 255/255];
+        %                 end
+        %                 posA = [f1_ok(1,q)-w f1_ok(2,q)-h 2*w+1 2*h+1];
+        %                 rectangle('Position',posA,'EdgeColor',colorRGB,'LineWidth',2);
+        %                 x_range = round(f1_ok(1,q)-w):round(f1_ok(1,q)+w);
+        %                 y_range = round(f1_ok(2,q)-h):round(f1_ok(2,q)+h);
+        %                 im_recA = imOut(y_range,x_range);
+        %                 posB = [f2_ok(1,q)+o-w f2_ok(2,q)-h 2*w+1 2*h+1];
+        %                 rectangle('Position',posB,'EdgeColor',colorRGB,'LineWidth',2);
+        %                 x_range = round(f2_ok(1,q)-w+o):round(f2_ok(1,q)+w+o);
+        %                 y_range = round(f2_ok(2,q)-h):round(f2_ok(2,q)+h);
+        %                 im_recB = imOut(y_range,x_range);
+        %                 imwrite(im_recA,fullfile(saveDir,['imA_rect' num2str(q) '_m' num2str(m) '_.tif']))
+        %                 imwrite(im_recB,fullfile(saveDir,['imB_rect' num2str(q) '_m' num2str(m) '_.tif']))
+        %
+        %                 if (m == 4)
+        %                     imA_grid=convertToGrid(im_recA,w,5);
+        %                     imB_grid=convertToGrid(im_recB,w,5);
+        %                     imwrite(imA_grid,fullfile(saveDir,['imA_rect' num2str(q) '_m' num2str(m) '_grid_.tif']))
+        %                     imwrite(imB_grid,fullfile(saveDir,['imB_rect' num2str(q) '_m' num2str(m) '_grid_.tif']))
+        %                     figure(5);clf
+        %                     imshowpair(imA_grid,imB_grid);
+        %                 end
+        %                 %            line([f1{m}(1,matches{m}(1,bestOK{m}));f2{m}(1,matches{m}(2,bestOK{m}))+o], ...
+        %                 %                [f1{m}(2,matches{m}(1,bestOK{m}));f2{m}(2,matches{m}(2,bestOK{m}))]) ;
+        %             end
+        %         end
+        %         title('matching areas');
+        %         axis image off ;
+        %         colormap('gray')
+        %
+        %         set(gca,'LooseInset',get(gca,'TightInset'));
+        %         saveMatchesName=['MatchedAreas_m' num2str(m) '.bmp'];
+        %         saveas(figID2,fullfile(saveDir,saveMatchesName))
+        
+    end
     
     
 end
@@ -360,9 +397,9 @@ end
 %                                                        Show   Mosaic
 % --------------------------------------------------------------------
 %
-if(saveFlag)
+if(saveFlag>=1)
     H = bestH;
-    for m = 1:MN
+    for m = MRange
         box2 = [1  size(im2{m},2) size(im2{m},2)  1              ;
             1  1              size(im2{m},1)  size(im2{m},1) ;
             1  1              1               1            ] ;
@@ -386,39 +423,95 @@ if(saveFlag)
         
         saveTif(im2_,saveDir,['image_B_Trans_m' num2str(m) '.tif']);
         
-        
-        % mass = ~isnan(im1_) + ~isnan(im2_) ;
-        im1_(isnan(im1_)) = 0 ;
-        im2_(isnan(im2_)) = 0 ;
-        
-        
-        figID4 = figure(4);
-        imshowpair(im1_,im2_) ; axis image off ;
-        set(gca,'LooseInset',get(gca,'TightInset'));
-        saveMatchesName=['compare_m' num2str(m) '.bmp'];
-        saveas(figID4,fullfile(saveDir,saveMatchesName))
-        
-        
-        overlap= (im1_ ~= 0) & (im2_ ~= 0);
-        
-        
-        imAvg = (im1_+im2_)./(overlap+ones(size(overlap)));
-        
-        saveTif(imAvg,saveDir,['image_Avg_m' num2str(m) '.tif']);
-        
-        
-        im1_(overlap) = 0; %for visualization, im2 is ontop
-        mosaic = (im1_ + im2_);
-        
-        figID3 = figure(3) ; clf ;
-        imagesc(mosaic) ; axis image off ;
-        colormap('gray')
-        %title('Mosaic') ;
-        
-        set(gca,'LooseInset',get(gca,'TightInset'));
-        saveMatchesName=['mosaic_m' num2str(m) '.bmp'];
-        saveas(figID3,fullfile(saveDir,saveMatchesName))
-        
+        if(saveFlag==1)
+            % mass = ~isnan(im1_) + ~isnan(im2_) ;
+            im1_(isnan(im1_)) = 0 ;
+            im2_(isnan(im2_)) = 0 ;
+            
+            
+            figID4 = figure(4);
+            imshowpair(im1_,im2_) ; axis image off ;
+            set(gca,'LooseInset',get(gca,'TightInset'));
+            saveMatchesName=['compare_m' num2str(m) '.bmp'];
+            saveas(figID4,fullfile(saveDir,saveMatchesName))
+            
+            
+            
+            overlap= (im1_ ~= 0) & (im2_ ~= 0);
+            imAvg = (im1_+im2_)./(overlap+ones(size(overlap)));
+            saveTif(imAvg,saveDir,['image_Avg_m' num2str(m) '.tif']);
+            
+            im1_temp = im1_;
+            im1_temp(overlap) = 0; %for visualization, im2 is ontop
+            mosaic = (im1_temp + im2_);
+            
+            figID3 = figure(3) ; clf ;
+            imagesc(mosaic) ; axis image off ;
+            colormap('gray')
+            %title('Mosaic') ;
+            
+            set(gca,'LooseInset',get(gca,'TightInset'));
+            saveMatchesName=['mosaic_m' num2str(m) '.bmp'];
+            saveas(figID3,fullfile(saveDir,saveMatchesName))
+            
+            hold on
+            f2_ = inv(H)*[f2{m}(1,:); f2{m}(2,:); ones(size(f2{m}(1,:)))];
+            scatter(f1{m}(1,:)-ur(1)+1, f1{m}(2,:)-vr(1)+1,2,colorRGB) ;
+            scatter(f2_(1,:)-ur(1)+1, f2_(2,:)-vr(1)+1,2,colorRGB3) ;
+            
+            if(max(bestOK{m}) > 0)
+                f2OK_ = inv(H)*[f2{m}(1,matches{m}(2,bestOK{m})); f2{m}(2,matches{m}(2,bestOK{m})); ones(size(f2{m}(2,matches{m}(2,bestOK{m}))))];
+                scatter(f1{m}(1,matches{m}(1,bestOK{m}))-ur(1)+1, ...
+                    f1{m}(2,matches{m}(1,bestOK{m}))-vr(1)+1,2,colorRGB2) ;
+                scatter(f2OK_(1,:)-ur(1)+1, f2OK_(2,:)-vr(1)+1,2,colorRGB2) ;
+            end
+            hold off
+            
+            saveMatchesName=['mosaicFeatures_m' num2str(m) '.bmp'];
+            saveas(figID3,fullfile(saveDir,saveMatchesName))
+            
+            
+            %save individual with features
+            figID3 = figure(3) ; clf ;
+            imagesc(im1_) ; axis image off ;
+            colormap('gray')
+            %title('Mosaic') ;
+            
+            set(gca,'LooseInset',get(gca,'TightInset'));
+            hold on
+            scatter(f1{m}(1,:)-ur(1)+1, f1{m}(2,:)-vr(1)+1,2,colorRGB) ;
+            %scatter(f2_(1,:)-ur(1)+1, f2_(2,:)-vr(1)+1,2,colorRGB3) ;
+            
+            if(max(bestOK{m}) > 0)
+                scatter(f1{m}(1,matches{m}(1,bestOK{m}))-ur(1)+1, ...
+                    f1{m}(2,matches{m}(1,bestOK{m}))-vr(1)+1,2,colorRGB2) ;
+                %     scatter(f2OK_(1,:)-ur(1)+1, f2OK_(2,:)-vr(1)+1,2,colorRGB2) ;
+            end
+            hold off
+            
+            saveMatchesName=['image_Afeatures_m' num2str(m) '.bmp'];
+            saveas(figID3,fullfile(saveDir,saveMatchesName))
+            
+            figID3 = figure(3) ; clf ;
+            imagesc(im2_) ; axis image off ;
+            colormap('gray')
+            %title('Mosaic') ;
+            
+            set(gca,'LooseInset',get(gca,'TightInset'));
+            hold on
+            %scatter(f1{m}(1,:)-ur(1)+1, f1{m}(2,:)-vr(1)+1,2,colorRGB) ;
+            scatter(f2_(1,:)-ur(1)+1, f2_(2,:)-vr(1)+1,2,colorRGB3) ;
+            
+            if(max(bestOK{m}) > 0)
+                %    scatter(f1{m}(1,matches{m}(1,bestOK{m}))-ur(1)+1, ...
+                %       f1{m}(2,matches{m}(1,bestOK{m}))-vr(1)+1,2,colorRGB2) ;
+                scatter(f2OK_(1,:)-ur(1)+1, f2OK_(2,:)-vr(1)+1,2,colorRGB2) ;
+            end
+            hold off
+            
+            saveMatchesName=['image_B_Transfeatures_m' num2str(m) '.bmp'];
+            saveas(figID3,fullfile(saveDir,saveMatchesName))
+        end
     end
 end
 

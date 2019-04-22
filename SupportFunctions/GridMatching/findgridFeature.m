@@ -1,7 +1,8 @@
-function [f d d_int thetas]=findgridFeature(ind, im,im_int,im_filt1, im_filt2)
+function [f, d, thetas, d_int]=findgridFeature(ind, im,im_int,im_filt1, im_filt2,w,g)
 
-w=50;%window width on one side
-g=5;%grid width in pixels
+
+%w=50;%window width on one side
+%g=5;%grid width in pixels
 R=3;%number of Nearest points for rotation variants, including itself(zero rotation)
 
 N=size(ind,1)*(R);% number of features
@@ -12,7 +13,13 @@ f=zeros(2,N); %location of feature
 d=zeros(ND^2,N); %feature discriptor
 
 gridarrayTemplate = zeros(ND,ND);%grid size
-d_int = zeros((2*w+1)^2,N,4);%debug variable
+
+d_int=0;
+if(nargin>2)%im_int,im_filt1, im_filt2 are optional debug inputs
+   debugOn = 1; 
+%   d_int = zeros((2*w+1)^2,N,4);%option debug output
+end
+debugOn = 0;
 
 for i = 1:size(ind)
     
@@ -21,10 +28,11 @@ for i = 1:size(ind)
         Yrange = y-w :1: y+w;
         Xrange = x-w :1: x+w;
         windowArray = im(Yrange,Xrange);
+        if(debugOn)
         windowArray_int = im_int(Yrange,Xrange);
         windowArray_filt1 = im_filt1(Yrange,Xrange);
         windowArray_filt2 = im_filt2(Yrange,Xrange);
-        
+        end
         %find points in window
         [wy wx] = find(windowArray);
         
@@ -101,10 +109,12 @@ for i = 1:size(ind)
             f(1:2,i_r) = [x ; y];
             d(:,i_r) = gridarray(:);
             d = logical(d);
-            d_int(:,i_r,1) = windowArray(:);
-            d_int(:,i_r,2) = windowArray_int(:);
-            d_int(:,i_r,3) = windowArray_filt1(:);
-            d_int(:,i_r,4) = windowArray_filt2(:);
+            if(debugOn)
+                d_int(:,i_r,1) = windowArray(:);
+                d_int(:,i_r,2) = windowArray_int(:);
+                d_int(:,i_r,3) = windowArray_filt1(:);
+                d_int(:,i_r,4) = windowArray_filt2(:);
+            end
         end
     end
 end
@@ -113,7 +123,10 @@ end
 
 f=f(:,~isnan(thetas)); %location of feature
 d=d(:,~isnan(thetas)); %feature discriptor
-d_int = d_int(:,~isnan(thetas),:);
 thetas=thetas(~isnan(thetas)); %rotation of feature
+
+if(debugOn)
+    d_int = d_int(:,~isnan(thetas),:);
+end
 
 

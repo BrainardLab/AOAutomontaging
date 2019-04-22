@@ -53,6 +53,9 @@ if strcmp(device_mode, 'multi_modal')
                     if(~isnan(scale) && scale>0)
                         pixelScale(n) = scale;
                     end
+                    
+                else%if excel doesn't have pixelScale information we just set it to 1
+                    pixelScale(n) = 1;
                 end
                 
                 %first try looking at coordinate grid
