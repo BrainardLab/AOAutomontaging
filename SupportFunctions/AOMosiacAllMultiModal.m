@@ -139,6 +139,9 @@ else
                 end
             end
         else%if not calculate sift features
+            SiftLevel = 55; %The number of levels to use in SIFT, default
+            ROICropPct = 0; %Sets a percentage crop on the boundaries of the image, where SIFT features are
+
             if(parallelFlag)
                 
                 parfor m = 1:MN
