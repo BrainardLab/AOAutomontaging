@@ -73,12 +73,20 @@ for n=1:N
                 if(featureType == 0)
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 elseif(featureType == 1)
-                    [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),CNNFlags(m),CNNParams{m},w,g);%use CNN
-                    [filepath,BaseName] = fileparts(imageFilename{m,n});
-                    imageSize = size(im);
-                    mkdir(fullfile(filepath,'ConeLocations'));
-                    SaveName = fullfile(filepath,'ConeLocations',[BaseName '.mat']);
-                    save(SaveName,'CNNPos','imageSize');
+                    %check if we already saved the cone locations
+                    [filepath,BaseName,ext]=fileparts(imageFilename{m,n});
+                    ConeFile = fullfile(filepath,'ConeLocations',[BaseName '.mat']); 
+                    if(isfile(ConeFile))
+                        savedCones = load(ConeFile);
+                        Loc_Index = sub2ind(savedCones.imageSize, round(savedCones.CNNPos(:,2)), round(savedCones.CNNPos(:,1)));
+                        [f1,d1] = gridFeatures(im(:,:,1),BPFilterFlags(m),CNNFlags(m),CNNParams{m},w,g,Loc_Index);%use CNN
+                    else
+                        [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),CNNFlags(m),CNNParams{m},w,g);%use CNN
+                        imageSize = size(im);
+                        mkdir(fullfile(filepath,'ConeLocations'));
+                        SaveName = fullfile(filepath,'ConeLocations',[BaseName '.mat']);
+                        save(SaveName,'CNNPos','imageSize');
+                    end
                 else
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 end

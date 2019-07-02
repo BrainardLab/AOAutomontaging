@@ -52,6 +52,8 @@ else
     Loc_Index_SizeFiltered =  Loc_Index_IntFiltered(cellsizes1 > 6);%prctile(cellsizes1,5));%> mean(im1_int)-std(double(im1_int)));
     Loc_Index = Loc_Index_SizeFiltered;
 end
+else
+    CNNPos =[];
 end
 
 LN = round(length(Loc_Index)*LocLossPct);

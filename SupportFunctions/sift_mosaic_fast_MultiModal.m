@@ -55,7 +55,6 @@ MRange=1:MN;%modalities to include in RANSAC
 if(exist('modalitiesToUse','var') && find(modalitiesToUse,1,'last')<=MN)
     MRange = find(modalitiesToUse,1,'first'):find(modalitiesToUse,1,'last');
 end
-
 %check if either image had zero features, exit with no matches if so
 total_f1 = 0;
 total_f2 = 0;
@@ -106,7 +105,7 @@ for m = MRange
     X2=[X2 X2_m];
 end
 
-
+%Homogeneous coordinates of a 2D point, so 3rd element is 1
 X1(3,:) = 1 ;
 X2(3,:) = 1 ;
 
@@ -125,79 +124,91 @@ bestOK_all = zeros(1,size(X1,2));
 bestScale = 1;
 
 allIndex = 1:numMatches_all;%list of all the indexs for the matches
-for t = 1:5000
-    % estimate model
-    if(numMatches_all >= 3)
-        subset = randsample(allIndex,3);
-        %subset = vl_colsubset(1:numMatches_all, 3) ;
-    else
-        subset = allIndex;
-    end
+offset = 0;
+for m = [0 MRange]
     
-    H = eye(3,3);
-    TransRadians = 0;
-    Scale = 1;
-    if (TransType == 0)
-        %Score Using Only Translation
-        C1 = mean(X1(1:2,subset),2);
-        C2 = mean(X2(1:2,subset),2);
-        trans = C2 - C1;
-        H(1,3) = trans(1);
-        H(2,3) = trans(2);
+    if (m==0)
+        testIndices = allIndex;%the first test is across all modalities
+    else%then we start testing individual modalities
+        testRange = zeros(1,length(allIndex));
+        testRange(offset+1:offset+numMatches(m))=1;
+        offset = offset + numMatches(m);
+        testIndices = allIndex(logical(testRange));
+    end
+    for t = 1:100000
+        
+        % estimate model
+        if(length(testIndices) >= 3)
+            subset = randsample(testIndices,3);
+            %subset = vl_colsubset(1:numMatches_all, 3) ;
+        else
+            subset = testIndices;
+        end
+        
+        H = eye(3,3);
         TransRadians = 0;
-    elseif (TransType == 1)
-        %Score Using Only rotation + translation
-        [dist,Z,trans]  = procrustes(X2(1:2,subset)',X1(1:2,subset)','scaling', false, 'reflection', false);
-        H = [trans.T' mean(trans.c,1)'; 0 0 1];
-        TransRadians = atan2(H(1,2),H(1,1));
-    elseif (TransType == 2)
-        %Score Using rotation + translation + scaling
-        [dist,Z,trans]  = procrustes(X2(1:2,subset)',X1(1:2,subset)','scaling', true, 'reflection', false);
-        H = [trans.b*trans.T' mean(trans.c,1)'; 0 0 1];
-        T = trans.T';
-        TransRadians = atan2(T(1,2),T(1,1));
-        Scale = trans.b;
-    elseif(TransType == 3)
-        %Score using homography (NOT affine)
-        %         A = [] ;
-        %         for i = subset
-        %             A = cat(1, A, kron(X1(:,i)', vl_hat(X2(:,i)))) ;
-        %         end
-        %         [U,S,V] = svd(A) ;
-        %         H = reshape(V(:,9),3,3) ;
+        Scale = 1;
+        if (TransType == 0)
+            %Score Using Only Translation
+            C1 = mean(X1(1:2,subset),2);
+            C2 = mean(X2(1:2,subset),2);
+            trans = C2 - C1;
+            H(1,3) = trans(1);
+            H(2,3) = trans(2);
+            TransRadians = 0;
+        elseif (TransType == 1)
+            %Score Using Only rotation + translation
+            [dist,Z,trans]  = procrustes(X2(1:2,subset)',X1(1:2,subset)','scaling', false, 'reflection', false);
+            H = [trans.T' mean(trans.c,1)'; 0 0 1];
+            TransRadians = atan2(H(1,2),H(1,1));
+        elseif (TransType == 2)
+            %Score Using rotation + translation + scaling
+            [dist,Z,trans]  = procrustes(X2(1:2,subset)',X1(1:2,subset)','scaling', true, 'reflection', false);
+            H = [trans.b*trans.T' mean(trans.c,1)'; 0 0 1];
+            T = trans.T';
+            TransRadians = atan2(T(1,2),T(1,1));
+            Scale = trans.b;
+        elseif(TransType == 3)
+            %Score using homography (NOT affine)
+            %         A = [] ;
+            %         for i = subset
+            %             A = cat(1, A, kron(X1(:,i)', vl_hat(X2(:,i)))) ;
+            %         end
+            %         [U,S,V] = svd(A) ;
+            %         H = reshape(V(:,9),3,3) ;
+            
+            % Use MATLAB function until redoing with proper affine (parallel
+            % lines must be preserved!)
+            trans = estimateGeometricTransform(X1(1:2,:)', X2(1:2,:)','affine', 'MaxNumTrials',1000,'MaxDistance',matchTolerance);
+            H = trans.T';
+            
+            TransRadians = atan2(H(1,2),H(1,1));
+        elseif(TransType == 4)
+            %individual scale
+            [dist,Z,trans]  = procrustes(X2(1:2,subset)',X1(1:2,subset)','scaling', false, 'reflection', false);
+            H = [trans.T' mean(trans.c)'; 0 0 1];
+            a=X2(1,subset)*pinv(Z(:,1)');
+            b=X2(2,subset)*pinv(Z(:,2)');
+            H = [a 0 0; 0 b 0; 0 0 1] * H;
+            TransRadians = atan2(H(1,2),H(1,1));
+        end
         
-        % Use MATLAB function until redoing with proper affine (parallel
-        % lines must be preserved!)
-        trans = estimateGeometricTransform(X1(1:2,:)', X2(1:2,:)','affine', 'MaxNumTrials',1000,'MaxDistance',matchTolerance);
-        H = trans.T';
         
-        TransRadians = atan2(H(1,2),H(1,1));
-    elseif(TransType == 4)
-        %individual scale
-        [dist,Z,trans]  = procrustes(X2(1:2,subset)',X1(1:2,subset)','scaling', false, 'reflection', false);
-        H = [trans.T' mean(trans.c)'; 0 0 1];
-        a=X2(1,subset)*pinv(Z(:,1)');
-        b=X2(2,subset)*pinv(Z(:,2)');
-        H = [a 0 0; 0 b 0; 0 0 1] * H;
-        TransRadians = atan2(H(1,2),H(1,1));
+        X2_ = H * X1 ;
+        du = X2_(1,:)./X2_(3,:) - X2(1,:)./X2(3,:) ;
+        dv = X2_(2,:)./X2_(3,:) - X2(2,:)./X2(3,:) ;
+        ok = (du.*du + dv.*dv) < matchTolerance*matchTolerance;
+        score = sum(ok) ;
+        
+        if((score > bestScore) && ((abs(TransRadians) < rotLimit)) && Scale < 1.1 && Scale > .90)
+            bestScore = score;
+            bestH = H;
+            bestOK_all = ok;
+            bestScale = Scale;
+        end
+        
     end
-    
-    
-    X2_ = H * X1 ;
-    du = X2_(1,:)./X2_(3,:) - X2(1,:)./X2(3,:) ;
-    dv = X2_(2,:)./X2_(3,:) - X2(2,:)./X2(3,:) ;
-    ok = (du.*du + dv.*dv) < matchTolerance*matchTolerance;
-    score = sum(ok) ;
-    
-    if((score > bestScore) && ((abs(TransRadians) < rotLimit)) && Scale < 1.1 && Scale > .90)
-        bestScore = score;
-        bestH = H;
-        bestOK_all = ok;
-        bestScale = Scale;
-    end
-    
 end
-
 %bestScale;
 numOkMatches_all = sum(bestOK_all);
 numOkMatches = zeros(MN,1);
