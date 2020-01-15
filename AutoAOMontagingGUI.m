@@ -86,6 +86,17 @@ if exist('psnewdoc')
     set(handles.pshop_cbox,'Value',1.0);    
 end
 
+% Check this version of AO Montaging against git.
+fid = fopen(fullfile(getparent(which(mfilename)),'.VERSION'),'r');
+if fid ~= -1
+    thisver = fscanf(fid,'%s');
+    fclose(fid);
+    
+    git_version_check( 'BrainardLab','AOAutomontaging', thisver )
+else
+    warning('Failed to detect .VERSION file, unable to determine if running the newest version.')
+end
+
 %set default options
 set(handles.uibuttongroup1,'selectedobject',handles.radiobutton3);
 set(handles.radiobutton4,'enable','off');
