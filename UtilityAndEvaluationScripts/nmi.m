@@ -33,7 +33,7 @@ function v = nmi(x, y)
     else
         MI = Hx + Hy - Hxy;
         % normalized mutual information
-        %v = 2*MI/(Hx + Hy);
+        %v = 2*Hxy/(Hx + Hy);
         v = sqrt((MI/Hx)*(MI/Hy)) ;
     end
 end   

@@ -135,7 +135,7 @@ for m = [0 MRange]
         offset = offset + numMatches(m);
         testIndices = allIndex(logical(testRange));
     end
-    for t = 1:100000
+    for t = 1:10000
         
         % estimate model
         if(length(testIndices) >= 3)
@@ -198,7 +198,7 @@ for m = [0 MRange]
         du = X2_(1,:)./X2_(3,:) - X2(1,:)./X2(3,:) ;
         dv = X2_(2,:)./X2_(3,:) - X2(2,:)./X2(3,:) ;
         ok = (du.*du + dv.*dv) < matchTolerance*matchTolerance;
-        score = sum(ok) ;
+        score = sum(ok); 
         
         if((score > bestScore) && ((abs(TransRadians) < rotLimit)) && Scale < 1.1 && Scale > .90)
             bestScore = score;

@@ -661,7 +661,7 @@ for m = 1:MN
                     H = TotalTransform(:,:,n);
                     
                     tform = affine2d(H');
-                    im_=imwarp(im,tform.invert(),'OutputView',imref2d(size(im)) );
+                    im_=imwarp(im,tform.invert(),'OutputView',imref2d(size(im),[min(ur) max(ur)],[min(vr) max(vr)]) );
                     
                     %save each individually transformed image
                     [pathstr,name,ext] = fileparts(char(imageFilename{m,n})) ;

@@ -31,14 +31,14 @@ tic
 %Algorithm Parameters
 NumOkMatchesThresh = 5; %Threshold for number of SIFT matches needed before accepting the transformation
 matchexp = '_\d\d\d\d_ref_\d'; %String match that is expected to show up in the filename of each image. E.g. '_0018_ref_7_'
-parallelFlag = exist('parfor');
+parallelFlag = 0;%exist('parfor');
 
 %load baseline and followup data
 
 [inData_Baseline, MN] = organizeDataByModality(imageDir_Baseline, ModalitiesSrchStrings);
 [inData_Followup, MN] = organizeDataByModality(imageDir_Followup, ModalitiesSrchStrings);
 
-MN = 3;
+MN = 2;
 
 %number of images in each
 N_Baseline = size(inData_Baseline,2);
@@ -72,7 +72,7 @@ end
 
 %sort using LocXY
 [LocXY_Baseline, inData_Baseline, imageFilename_Baseline, pixelScale_Baseline,ID_Baseline] = sortUsingLocXY(LocXY_Baseline, inData_Baseline, imageFilename_Baseline, pixelScale_Baseline, ID_Baseline, MN);
-[LocXY_Followup, inData_Followup, imageFilename_Followup, pixelScale_Followup,ID_Followup] = sortUsingLocXY(LocXY_Followup, inData_Followup, imageFilename_Followup, pixelScale_Followup, ID_Baseline, MN);
+[LocXY_Followup, inData_Followup, imageFilename_Followup, pixelScale_Followup,ID_Followup] = sortUsingLocXY(LocXY_Followup, inData_Followup, imageFilename_Followup, pixelScale_Followup, ID_Followup, MN);
 
 %If appending we start by loading variable from the save
 saved = load(baselineMontageSaved,'N','inData','TotalTransform','LocXY');
@@ -86,7 +86,7 @@ for n = 1:N_Baseline
     end
 end
 if(~verified)
-    errordlg(['Baseline data do not previously built baseline montage']);
+    errordlg(['Baseline data not found in previously built baseline montage']);
     outNameList = [];
     return
     
@@ -94,8 +94,23 @@ end
 
 
 %calculate features
-[f_all_Baseline, d_all_Baseline, h] = calculateFeatures(imageFilename_Baseline, parallelFlag, pixelScale_Baseline, featureType, MN, N_Baseline);
-[f_all_Followup, d_all_Followup, h] = calculateFeatures(imageFilename_Followup, parallelFlag, pixelScale_Followup, featureType, MN, N_Followup);
+
+MN=3;
+parallelFlag = 0;
+BPFilterFlags=zeros(1,MN);
+CNNFlags =zeros(1,MN);
+modalitiesToUse = ones(1,MN);
+MN=2;
+featureType = 1;
+CNNFlags(1) = 0;
+CNNFlags(2) = 0;
+BPFilterFlags(1) = 0; 
+BPFilterFlags(2) = 1; 
+
+
+[f_all_Baseline, d_all_Baseline, h] = calculateFeatures(imageFilename_Baseline, parallelFlag, pixelScale_Baseline, featureType, MN, N_Baseline,BPFilterFlags,CNNFlags,70,5);
+[f_all_Followup, d_all_Followup, h] = calculateFeatures(imageFilename_Followup, parallelFlag, pixelScale_Followup, featureType, MN, N_Followup,BPFilterFlags,CNNFlags,70,5);
+
 
 %Begin Matching
 waitbar(sum(Matched_Followup)/N_Followup,h,strcat('Aligning Images (',num2str(100*sum(Matched_Followup)/N_Followup,3),'%)'));
@@ -149,11 +164,10 @@ while(stuckFlag == 0)
                         saveMatchesName = strcat('Matches_n',num2str(n),'_(', num2str(LocXY_Followup(1,n)),',', ...
                             num2str(LocXY_Followup(2,n)),')','_to_','n',num2str(refIndex),'_(', num2str(LocXY_Baseline(1,refIndex)),...
                             ',',num2str(LocXY_Baseline(2,refIndex)),')');
-                        
                         saveMatchesName=fullfile(outputDir,saveMatchesName);
+                        mkdir(saveMatchesName);
+                        [relativeTransform, numOkMatches, numMatches, bestScale]=sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,0,f_all_Baseline(:,refIndex),d_all_Baseline(:,refIndex),f_all_Followup(:,n),d_all_Followup(:,n),TransType,[],featureType,modalitiesToUse);
 
-                        [relativeTransform, numOkMatches, numMatches, bestScale]=sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,0,f_all_Baseline(:,refIndex),d_all_Baseline(:,refIndex),f_all_Followup(:,n),d_all_Followup(:,n),TransType,[],featureType);
-                        
                         ResultsNumOkMatches(n,refIndex) = numOkMatches;
                         ResultsNumMatches(n,refIndex) = numMatches;
                         ResultsTransformToRef(:,:,n,refIndex) = relativeTransform;
@@ -188,7 +202,7 @@ while(stuckFlag == 0)
                  saveMatchesName=fullfile(outputDir,saveMatchesName);
                  mkdir(saveMatchesName);
 
-                 sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,1,f_all_Baseline(:,refIndex),d_all_Baseline(:,refIndex),f_all_Followup(:,n),d_all_Followup(:,n),TransType,[],featureType);
+                 sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,1,f_all_Baseline(:,refIndex),d_all_Baseline(:,refIndex),f_all_Followup(:,n),d_all_Followup(:,n),TransType,[],featureType,modalitiesToUse);
                 
                 stuckFlag = 0;
                 waitbar(sum(Matched_Followup)/N_Followup,h,strcat('Aligning Images (',num2str(100*sum(Matched_Followup)/N_Followup,3),'%)'));

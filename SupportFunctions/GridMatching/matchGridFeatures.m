@@ -22,6 +22,8 @@ sumd2 = sum(d2);
 
 dist_all = d1' * d2 ./ bsxfun(@plus,sumd1',sumd2);
 
+%dist_all = d1' * d2;% %./ bsxfun(@plus,sumd1',sumd2);
+
         [best,index2] = max(dist_all,[],2);
 
         %dist_all(isnan(dist_all))=0;
@@ -32,8 +34,9 @@ dist_all = d1' * d2 ./ bsxfun(@plus,sumd1',sumd2);
         %dist_all(sub2ind(size(dist_all),(1:length(index2))',index2))= 0;
         %[secondbest,I2] = max(dist_all,[],2);
         index2 = index2';
-        %valid = (best*thresh > secondbest);
         valid = (best > thresh2);
+%        valid = (best > .1);
+
         matches = [index1(valid); index2(valid)];
         
 %        savegridfeaturePairs(d1,d2,d1_int,d2_int,matches,8);

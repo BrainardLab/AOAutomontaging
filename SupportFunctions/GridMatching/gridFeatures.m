@@ -40,7 +40,7 @@ else
     %find using local minimum approach
     [im1_mask, X1, Y1] =  findlocalmin(im);
     
-    CNNPos =[X1(1:end)' Y1(1:end)'];
+    CNNPos =[X1(1:end) Y1(1:end)];
     Loc_Index = sub2ind(size(im), Y1, X1);
     Loc_intensity = im(Loc_Index);
     

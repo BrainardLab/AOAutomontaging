@@ -52,11 +52,13 @@ for n=1:N
                 if(featureType == 0)
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 elseif(featureType == 1)
-                        [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),0,w,g);%use bandpassfilter if split, can't use CNN if parallel processing
+                        %[f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),0,w,g);%use bandpassfilter if split, can't use CNN if parallel processing
+                        [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),0,[],w,g);%use CNN
                         [filepath,BaseName] = fileparts(imageFilename{m,n});
                         imageSize = size(im);
+                        mkdir(fullfile(filepath,'ConeLocations'));
                         SaveName = fullfile(filepath,'ConeLocations',[BaseName '.mat']);
-                        save(SaveName,'CNNPos','imageSize');
+                        saveConeLoc(SaveName,CNNPos,imageSize)
                 else
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 end
