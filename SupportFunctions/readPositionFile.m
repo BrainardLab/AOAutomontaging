@@ -43,6 +43,8 @@ if strcmp(device_mode, 'multi_modal')
             end            
         end
         
+        %use the smallest FoV in the Data as the 
+        pixelScale = pixelScale/min(pixelScale);
     else
 
         %load position info from excel spreadsheet
