@@ -312,7 +312,6 @@ defined(__DOXYGEN__)
 #if defined(VL_COMPILER_MSC) & ! defined(__DOXYGEN__)
 #  define VL_UNUSED
 #  define VL_INLINE static __inline
-#  define snprintf _snprintf
 #  define isnan _isnan
 #  ifdef VL_BUILD_DLL
 #    ifdef __cplusplus
@@ -332,7 +331,6 @@ defined(__DOXYGEN__)
 #if defined(VL_COMPILER_LCC) & ! defined(__DOXYGEN__)
 #  define VL_UNUSED
 #  define VL_INLINE static __inline
-#  define snprintf _snprintf
 #  define isnan _isnan
 VL_INLINE float fabsf(float x) { return (float) fabs((double) x) ; }
 #  ifdef VL_BUILD_DLL
