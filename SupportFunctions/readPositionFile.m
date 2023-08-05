@@ -9,7 +9,7 @@ NC = -1;%number of columns in the file
 eyeSide = 'OS';
 errorFlag = 0;
 
-if strcmp(device_mode, 'multi_modal')
+if (device_mode==1)%Multi-modal
     
     if strcmp(posFileLoc(end-3:end), '.csv')
         lut = readtable(posFileLoc);
@@ -43,6 +43,8 @@ if strcmp(device_mode, 'multi_modal')
             end            
         end
         
+        %use the smallest FoV in the Data as the 
+        pixelScale = pixelScale/min(pixelScale);
     else
 
         %load position info from excel spreadsheet
@@ -123,7 +125,7 @@ if strcmp(device_mode, 'multi_modal')
         pixelScale = max(pixelScale)./pixelScale;
     end
     
-elseif strcmp(device_mode, 'canon')
+elseif (device_mode==2)%Canon
     for n = 1:N
         [ eyeSide, LocXY(:,n) ] = parseCanonFName( inData{1,n} );
         imageFilename{1,n} = fullfile(imageDir, inData{1,n});

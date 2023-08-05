@@ -1,4 +1,4 @@
-function [f_all, d_all, h] = calculateFeatures(imageFilename, parallelFlag, pixelScale, featureType, MN, N,BPFilterFlags,CNNFlags,w,g)
+function [f_all, d_all, h] = calculateFeatures(imageFilename, parallelFlag, pixelScale, featureType, MN, N,BPFilterFlags,CNNFlags,gridWindowSize,gridBlockSize,featureSaveLocation)
 %Calculate features for all images listed in imageFilename
 
 %feature parameters
@@ -11,8 +11,8 @@ d_all = cell(MN,N);
 
 if (featureType == 0)
     FeatureName = 'SIFT';
-    w=0;
-    g=0;
+    gridWindowSize=0;
+    gridBlockSize=0;
 elseif (featureType == 1)
     FeatureName = 'Constellation';
 end
@@ -35,11 +35,16 @@ else
     run(fullfile(MatConvNetPath,'matlab','vl_setupnn.m'))
 end
 
+if ~exist('featureSaveLocation','var')
+    saveFeaturesFlag = 0;
+    featureSaveLocation = '';
+else
+    saveFeaturesFlag = 1;
+end
+
 if(sum(CNNFlags)>0) %Can't parallel process if using CNN
     parallelFlag = 0;
 end
-
-
 
 h = waitbar(0,['Calculating ' FeatureName ' Features (0%)']);
 for n=1:N
@@ -52,13 +57,14 @@ for n=1:N
                 if(featureType == 0)
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 elseif(featureType == 1)
-                        %[f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),0,w,g);%use bandpassfilter if split, can't use CNN if parallel processing
-                        [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),0,[],w,g);%use CNN
-                        [filepath,BaseName] = fileparts(imageFilename{m,n});
-                        imageSize = size(im);
-                        mkdir(fullfile(filepath,'ConeLocations'));
-                        SaveName = fullfile(filepath,'ConeLocations',[BaseName '.mat']);
-                        saveConeLoc(SaveName,CNNPos,imageSize)
+                        [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),0,[],gridWindowSize,gridBlockSize);%Can't use CNN
+                        [~,BaseName] = fileparts(imageFilename{m,n});
+                        if(saveFeaturesFlag)
+                            imageSize = size(im);
+                            mkdir(fullfile(featureSaveLocation,'ConeLocations'));
+                            SaveName = fullfile(featureSaveLocation,'ConeLocations',[BaseName '.mat']);
+                            saveConeLoc(SaveName,'CNNPos','imageSize')
+                        end
                 else
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 end
@@ -76,18 +82,20 @@ for n=1:N
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 elseif(featureType == 1)
                     %check if we already saved the cone locations
-                    [filepath,BaseName,ext]=fileparts(imageFilename{m,n});
-                    ConeFile = fullfile(filepath,'ConeLocations',[BaseName '.mat']); 
+                    [~,BaseName,ext]=fileparts(imageFilename{m,n});
+                    ConeFile = fullfile(featureSaveLocation,'ConeLocations',[BaseName '.mat']); 
                     if(isfile(ConeFile))
                         savedCones = load(ConeFile);
                         Loc_Index = sub2ind(savedCones.imageSize, round(savedCones.CNNPos(:,2)), round(savedCones.CNNPos(:,1)));
-                        [f1,d1] = gridFeatures(im(:,:,1),BPFilterFlags(m),CNNFlags(m),CNNParams{m},w,g,Loc_Index);%use CNN
+                        [f1,d1] = gridFeatures(im(:,:,1),BPFilterFlags(m),CNNFlags(m),CNNParams{m},gridWindowSize,gridBlockSize,Loc_Index);%use CNN
                     else
-                        [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),CNNFlags(m),CNNParams{m},w,g);%use CNN
-                        imageSize = size(im);
-                        mkdir(fullfile(filepath,'ConeLocations'));
-                        SaveName = fullfile(filepath,'ConeLocations',[BaseName '.mat']);
-                        save(SaveName,'CNNPos','imageSize');
+                        [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),CNNFlags(m),CNNParams{m},gridWindowSize,gridBlockSize);%use CNN
+                        if(saveFeaturesFlag)
+                            imageSize = size(im);
+                            mkdir(fullfile(featureSaveLocation,'ConeLocations'));
+                            SaveName = fullfile(featureSaveLocation,'ConeLocations',[BaseName '.mat']);
+                            save(SaveName,'CNNPos','imageSize');
+                        end
                     end
                 else
                     [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);

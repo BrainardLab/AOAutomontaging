@@ -29,7 +29,7 @@ function  [outNameList, TotalTransform, MatchedTo_Followup_to_Baseline] = AOAlig
 
 tic
 %Algorithm Parameters
-NumOkMatchesThresh = 5; %Threshold for number of SIFT matches needed before accepting the transformation
+NumOkMatchesThresh = 25; %Threshold for number of SIFT matches needed before accepting the transformation
 matchexp = '_\d\d\d\d_ref_\d'; %String match that is expected to show up in the filename of each image. E.g. '_0018_ref_7_'
 parallelFlag = 0;%exist('parfor');
 
@@ -108,8 +108,13 @@ BPFilterFlags(1) = 0;
 BPFilterFlags(2) = 1; 
 
 
-[f_all_Baseline, d_all_Baseline, h] = calculateFeatures(imageFilename_Baseline, parallelFlag, pixelScale_Baseline, featureType, MN, N_Baseline,BPFilterFlags,CNNFlags,70,5);
-[f_all_Followup, d_all_Followup, h] = calculateFeatures(imageFilename_Followup, parallelFlag, pixelScale_Followup, featureType, MN, N_Followup,BPFilterFlags,CNNFlags,70,5);
+gridWindowSize = 70;
+gridBlockSize = 5;
+
+featureSaveLocation = fullfile(outputDir,'BaselineFeatures');
+[f_all_Baseline, d_all_Baseline, h] = calculateFeatures(imageFilename_Baseline, parallelFlag, pixelScale_Baseline, featureType, MN, N_Baseline,BPFilterFlags,CNNFlags,gridWindowSize,gridBlockSize,featureSaveLocation);
+featureSaveLocation = fullfile(outputDir,'FollowupFeatures');
+[f_all_Followup, d_all_Followup, h] = calculateFeatures(imageFilename_Followup, parallelFlag, pixelScale_Followup, featureType, MN, N_Followup,BPFilterFlags,CNNFlags,gridWindowSize,gridBlockSize,featureSaveLocation);
 
 
 %Begin Matching
@@ -147,26 +152,33 @@ while(stuckFlag == 0)
             bestNumOkMatches = 0;%Set to Min
             bestNumMatches = 1000000;%Set to Max
             
+            %load image
+            currentImg= cell(MN,1);
+            for m= 1:MN
+                currentImg{m} = imresize( imread(char(imageFilename_Followup{m,n})), pixelScale_Followup(n),'bilinear' );
+            end
+            
             for refIndex=1:N_Baseline % look at all possible references
                 CurrentDistToRef = sum(abs(LocXY_Baseline(:,refIndex) - LocXY_Followup(:,n)));
-                if(CurrentDistToRef <= searchLevel && refIndex ~= n)%Check reference is within one distance to target
+                if(CurrentDistToRef <= searchLevel)%Check reference is within one distance to target
                     
                     disp(strcat('  Checking against n',int2str(refIndex), ' at location (', num2str(LocXY_Baseline(1,refIndex)),',', ...
                         num2str(LocXY_Baseline(2,refIndex)),')'));
                     
                     if (ResultsNumOkMatches(n,refIndex) == -1) %check if match has already been checked before
                         refImg = cell(MN,1);
-                        currentImg= cell(MN,1);
                         for m= 1:MN
                             refImg{m} = imresize(imread(char(imageFilename_Baseline{m,refIndex})), pixelScale_Baseline(refIndex),'bilinear' );
-                            currentImg{m} = imresize( imread(char(imageFilename_Followup{m,n})), pixelScale_Followup(n),'bilinear' );
                         end
-                        saveMatchesName = strcat('Matches_n',num2str(n),'_(', num2str(LocXY_Followup(1,n)),',', ...
+                            saveMatchesName = strcat('Matches_n',num2str(n),'_(', num2str(LocXY_Followup(1,n)),',', ...
                             num2str(LocXY_Followup(2,n)),')','_to_','n',num2str(refIndex),'_(', num2str(LocXY_Baseline(1,refIndex)),...
                             ',',num2str(LocXY_Baseline(2,refIndex)),')');
-                        saveMatchesName=fullfile(outputDir,saveMatchesName);
-                        mkdir(saveMatchesName);
-                        [relativeTransform, numOkMatches, numMatches, bestScale]=sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,0,f_all_Baseline(:,refIndex),d_all_Baseline(:,refIndex),f_all_Followup(:,n),d_all_Followup(:,n),TransType,[],featureType,modalitiesToUse);
+                            saveMatchesName=fullfile(outputDir,'AllMatches',saveMatchesName);
+                            saveAllFlag=0;
+                            if(saveAllFlag == 1)
+                                mkdir(saveMatchesName);
+                            end
+                        [relativeTransform, numOkMatches, numMatches, bestScale]=matchImagesMultiModalFeatures(refImg, currentImg, saveMatchesName,saveAllFlag,f_all_Baseline(:,refIndex),d_all_Baseline(:,refIndex),f_all_Followup(:,n),d_all_Followup(:,n),TransType,[],featureType,modalitiesToUse);
 
                         ResultsNumOkMatches(n,refIndex) = numOkMatches;
                         ResultsNumMatches(n,refIndex) = numMatches;
@@ -178,6 +190,7 @@ while(stuckFlag == 0)
                     if(ResultsNumOkMatches(n,refIndex)>bestNumOkMatches || ((ResultsNumOkMatches(n,refIndex)==bestNumOkMatches) && ...
                             (ResultsNumOkMatches(n,refIndex)/ResultsNumMatches(n,refIndex) > bestNumOkMatches/bestNumMatches)))
                         bestRefIndex = refIndex;
+                        bestRefImg = refImg;
                         bestTransform(:,:) = ResultsTransformToRef(:,:,n,refIndex);
                         bestNumOkMatches = ResultsNumOkMatches(n,refIndex);
                         bestNumMatches = ResultsNumMatches(n,refIndex);
@@ -195,14 +208,13 @@ while(stuckFlag == 0)
                 MatchedTo_Followup_to_Baseline(n) = bestRefIndex;
                 
                 %save best one
-                refIndex = bestRefIndex;
                 saveMatchesName = strcat('Matches_n',num2str(n),'_(', num2str(LocXY_Followup(1,n)),',', ...
-                            num2str(LocXY_Followup(2,n)),')','_to_','n',num2str(refIndex),'_(', num2str(LocXY_Baseline(1,refIndex)),...
-                            ',',num2str(LocXY_Baseline(2,refIndex)),')');
-                 saveMatchesName=fullfile(outputDir,saveMatchesName);
+                            num2str(LocXY_Followup(2,n)),')','_to_','n',num2str(bestRefIndex),'_(', num2str(LocXY_Baseline(1,bestRefIndex)),...
+                            ',',num2str(LocXY_Baseline(2,bestRefIndex)),')');
+                 saveMatchesName=fullfile(outputDir,'BestMatches',saveMatchesName);
                  mkdir(saveMatchesName);
 
-                 sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,1,f_all_Baseline(:,refIndex),d_all_Baseline(:,refIndex),f_all_Followup(:,n),d_all_Followup(:,n),TransType,[],featureType,modalitiesToUse);
+                 matchImagesMultiModalFeatures(bestRefImg, currentImg, saveMatchesName,1,f_all_Baseline(:,bestRefIndex),d_all_Baseline(:,bestRefIndex),f_all_Followup(:,n),d_all_Followup(:,n),TransType,[],featureType,modalitiesToUse);
                 
                 stuckFlag = 0;
                 waitbar(sum(Matched_Followup)/N_Followup,h,strcat('Aligning Images (',num2str(100*sum(Matched_Followup)/N_Followup,3),'%)'));
@@ -214,12 +226,11 @@ while(stuckFlag == 0)
         if(searchLevel == 1)%raise search radius
             searchLevel = 2;
             stuckFlag = 0;
-%        elseif(percentageThresh > .25)%lower require match percentage
-%            percentageThresh = percentageThresh - .1;
-%            stuckFlag = 0;
+        else
+            %if constraints has already been lowered, then we start a new
+            %branch and reset constraint
+            searchLevel = 1;
         end
-        %if both constraints have already been lowered, then we just start a new
-        %branch
     end
 end
 waitbar(sum(Matched_Followup)/N_Followup,h,strcat('Alignment Complete (100%). Writing Outputs.'));
@@ -303,8 +314,8 @@ numWritten=0;%keeps track of how many images written to disk
 %    'ResultsTransformToRef','f_all','d_all','N_Followup','ResultsScaleToRef','MatchedTo','TotalTransform',...
 %    'RelativeTransformToRef');
 
-outputDirMatched = fullfile(outputDir,'matched');
-outputDirUnmatched = fullfile(outputDir,'unmatched');
+outputDirMatched = fullfile(outputDir,'FollowupMontageResults');
+outputDirUnmatched = fullfile(outputDir,'UnmatchedFollowupImages');
 
 mkdir(outputDirMatched)
 mkdir(outputDirUnmatched)
@@ -366,7 +377,7 @@ for m = 1:MN
         %imshow(imCombined)
         %save combined image for each piece
         if(NumOfRefs > 1)%only necessary if more than one piece
-            saveFileName = strcat('ref_',num2str(i),'_combined_m',num2str(m),'.tif');
+            saveFileName = strcat('ref_',num2str(i),'_combined_Followup_m',num2str(m),'.tif');
             
            % if(AppendToExisting)
            %     outNameList{i+1,m}=fullfile('Append',saveFileName);
@@ -382,7 +393,7 @@ for m = 1:MN
     end
     
     %save the combined image of all the pieces
-    saveFileName = strcat('all_ref_combined_m',num2str(m),'.tif');
+    saveFileName = strcat('all_ref_combined_Followup_m',num2str(m),'.tif');
   %  if(AppendToExisting)
   %      outNameList{1,m}=fullfile('Append',saveFileName);
   %  else

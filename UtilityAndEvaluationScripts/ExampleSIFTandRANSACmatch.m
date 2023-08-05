@@ -44,4 +44,4 @@ end
 TransType=1;%Use a Rigid example for this example
 saveFlag = 1;
 %find mataches and RANSAC
-sift_mosaic_fast_MultiModal(im1, im2, outputDir,saveFlag,f_all(:,1),d_all(:,1),f_all(:,2),d_all(:,2),TransType)
+matchImagesMultiModalFeatures(im1, im2, outputDir,saveFlag,f_all(:,1),d_all(:,1),f_all(:,2),d_all(:,2),TransType)

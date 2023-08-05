@@ -32,20 +32,21 @@ MN = counter;%only using nonempty identifiers
 % throw an error.
 for n = 1:size(inData,2)
     compstrs = cell(MN,1);
+    compstrsInd=zeros(MN,1);
     for m=1:MN
         if ~isempty(ModalitiesSrchStrings{m})
-            compstrs{m} = strrep(inData{m,n},ModalitiesSrchStrings{m},'');
+            compstrsInd(m) = strfind(inData{m,n},ModalitiesSrchStrings{m});
+            compstrs{m} = inData{m,n}(:,1:(compstrsInd(m)-1));
         end
     end
-    allens = cellfun(@length,compstrs);
-    if ~all(allens(1) == allens)
-        errorFlag = ['Error: All image pairs/tuples must have all available modalities. Check image ' inData{1,n} '.'];
-        return
-    end
+     if ~all(compstrsInd(1) == compstrsInd)
+         errorFlag = ['Error: All image pairs/tuples must have identical prefixs before modality identifier. Check image ' inData{1,n} '.'];
+         return
+     end
     compstrs=cell2mat(compstrs);
     for m=1:MN
         if ~all(compstrs(1,:) == compstrs(m,:))
-            errorFlag = ['Error: All image pairs/tuples must have all available modalities. Check image ' inData{m,n} '.'];
+         errorFlag = ['Error: All image pairs/tuples must have identical prefixs before modality identifier. Check image ' inData{1,n} '.'];
             return
         end
     end

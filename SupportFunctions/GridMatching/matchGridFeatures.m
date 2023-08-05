@@ -4,7 +4,7 @@ N1 = size(d1,2);
 N2 = size(d2,2);
 dist_all = zeros(N1,N2);
 thresh = 1.05;
-thresh2 = .2;
+thresh2 = .1;
 index1 = 1:size(d1,2);
 
 d1=single(d1);

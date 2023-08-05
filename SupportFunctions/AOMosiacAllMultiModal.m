@@ -240,12 +240,16 @@ while (sum(Matched) < N)
                                     im = imread(char(imageFilename{m,n}));
                                     currentImg{m} = imresize( im(:,:,1), pixelScale(n),'bilinear' );
                                 end
-                                saveMatchesName = strcat('Matches_n',num2str(n),'_(', num2str(LocXY(1,n)),',', ...
+                                saveMatchesDir = strcat('Matches_n',num2str(n),'_(', num2str(LocXY(1,n)),',', ...
                                     num2str(LocXY(2,n)),')','_to_','n',num2str(refIndex),'_(', num2str(LocXY(1,refIndex)),...
-                                    ',',num2str(LocXY(2,refIndex)),')','.jpg');
+                                    ',',num2str(LocXY(2,refIndex)),')');
+                                saveMatchesDir=fullfile(outputDir,saveMatchesDir);
                                 
-                                saveMatchesName=fullfile(outputDir,saveMatchesName);
-                                [relativeTransform, numOkMatches, numMatches, bestScale]=sift_mosaic_fast_MultiModal(refImg, currentImg, saveMatchesName,0,f_all(:,refIndex),d_all(:,refIndex),f_all(:,n),d_all(:,n),TransType,[],featureType);
+                                saveFlag=0;
+                                if(saveFlag)
+                                    mkdir(saveMatchesDir);
+                                end
+                                [relativeTransform, numOkMatches, numMatches, bestScale]=matchImagesMultiModalFeatures(refImg, currentImg, saveMatchesDir,saveFlag,f_all(:,refIndex),d_all(:,refIndex),f_all(:,n),d_all(:,n),TransType,[],featureType);
                                 
                                 ResultsNumOkMatches(n,refIndex) = numOkMatches;
                                 ResultsNumMatches(n,refIndex) = numMatches;
@@ -522,7 +526,7 @@ if export_to_pshop
             
             % If we had 3 columns and we're not using the canon, then we can determine which should go in the
             % "fovea" bin.
-            if ~strcmp(device_mode, 'canon') && (NC >= 3)
+            if (device_mode == 1) && (NC >= 3)
                 if any(strcmpi(strtrim(ID{n}), {'TRC','TR','MTE','MT','TM','TLC','TL',...
                         'MRE','MR','C','CENTER','MLE','ML'...
                         'BRC','BR','MBE','MB','BM','BLC','BL',}))

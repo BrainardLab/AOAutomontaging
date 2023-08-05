@@ -22,7 +22,7 @@ if(useCNN)
     load(CNNParams.ProbMap.NetworkPath);
     load(CNNParams.Results.OptimizationPath);
 
-    net = vl_simplenn_move(net, 'gpu');
+    net = vl_simplenn_move(net, 'cpu');
     net.layers{end}.type = 'softmax';
     ProbParam.PMsigma = OptParam.MaxSigma;
     ProbParam.PMthresh = OptParam.MaxPMthresh;

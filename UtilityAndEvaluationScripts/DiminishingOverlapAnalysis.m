@@ -99,7 +99,7 @@ parfor f = find(~complete)%do for every folder
             
             %match
             
-            [relativeTransform, numOkMatches, numMatches]=sift_mosaic_fast_MultiModal(im1, im2, [],0,f_all(:,1),d_all(:,1),f_all(:,2),d_all(:,2),1);
+            [relativeTransform, numOkMatches, numMatches]=matchImagesMultiModalFeatures(im1, im2, [],0,f_all(:,1),d_all(:,1),f_all(:,2),d_all(:,2),1);
             
             %Apply transformation and find overlap(only the first time)
             if( firstItr);
