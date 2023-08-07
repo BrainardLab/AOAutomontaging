@@ -82,12 +82,14 @@ for m = MRange
     
     %use differen matching method depending on feature type
     if(featureType==0)%sift
-        [matches_m, scores] = vl_ubcmatch_fast(d1{m},d2{m});
+        matches_m = matchFeatures(d1{m}',d2{m}',MatchThreshold=100);
+        matches_m = matches_m';%transpose for consistency with rest of code
+        %[matches_m, scores] = vl_ubcmatch_fast(d1{m},d2{m});
     elseif(featureType==1)%constellation
         matches_m = matchGridFeatures(d1{m},d2{m});%,d1_int,d2_int);
     elseif(featureType==2)%surf
         matches_m = matchFeatures(d1{m},d2{m});
-        matches_m = matches_m';%for consistency with rest of code
+        matches_m = matches_m';%transpose for consistency with rest of code
         f1{m} = f1{m}.Location';
         f2{m} = f2{m}.Location';
     end

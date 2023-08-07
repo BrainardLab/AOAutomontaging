@@ -21,3 +21,4 @@ octave-workspace
 
 # Simulink autosave extension
 *.autosave
+.DS_Store

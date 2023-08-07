@@ -148,11 +148,15 @@ else
                     im = imread(char(imageFilename{m,n1}));
                     im = imresize( im2single( im(:,:,1) ), pixelScale(n),'bilinear' );
                     if(featureType == 0)
-                        [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                        points = detectSIFTFeatures(im,NumLayersInOctave=5);
+                        [features,valid_points] = extractFeatures(im,points);
+                        f1 = valid_points.Location';
+                        d1 = features';
+                        %[f1,d1] = vl_sift(im,'Levels',SiftLevel);
                     elseif(featureType == 1)
                         [f1,d1] = gridFeatures(im(:,:,1));
                     else
-                        [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                        %[f1,d1] = vl_sift(im,'Levels',SiftLevel);
                     end
                     [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                     f_all{m,n1} = f1_crop;
@@ -164,11 +168,15 @@ else
                     im = imread(char(imageFilename{m,n1}));
                     im = imresize( im2single( im(:,:,1) ), pixelScale(n),'bilinear' );
                     if(featureType == 0)
-                        [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                        points = detectSIFTFeatures(im,NumLayersInOctave=5);
+                        [features,valid_points] = extractFeatures(im,points);
+                        f1 = valid_points.Location';
+                        d1 = features';
+%                        [f1,d1] = vl_sift(im,'Levels',SiftLevel);
                     elseif(featureType == 1)
                         [f1,d1] = gridFeatures(im(:,:,1));
                     else
-                        [f1,d1] = vl_sift(im,'Levels',SiftLevel);
+                        %[f1,d1] = vl_sift(im,'Levels',SiftLevel);
                     end
                     
                     [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);

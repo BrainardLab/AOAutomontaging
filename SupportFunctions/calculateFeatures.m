@@ -55,7 +55,11 @@ for n=1:N
                 im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale_n,'bilinear');
                 
                 if(featureType == 0)
-                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                    points = detectSIFTFeatures(im,NumLayersInOctave=5);
+                    [features,valid_points] = extractFeatures(im,points);
+                    f1 = valid_points.Location';
+                    d1 = features';
+%                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 elseif(featureType == 1)
                         [f1,d1,Loc_Index,CNNPos] = gridFeatures(im(:,:,1),BPFilterFlags(m),0,[],gridWindowSize,gridBlockSize);%Can't use CNN
                         [~,BaseName] = fileparts(imageFilename{m,n});
@@ -66,7 +70,7 @@ for n=1:N
                             saveConeLoc(SaveName,'CNNPos','imageSize')
                         end
                 else
-                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                    %[f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 end
                 
                 [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
@@ -79,7 +83,11 @@ for n=1:N
             if ~isempty(imageFilename{m,n}) % If this file is blank, then that means we don't have valid information for it- skip it.
                 im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale(n),'bilinear');
                 if(featureType == 0)
-                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                    points = detectSIFTFeatures(im,NumLayersInOctave=5);
+                    [features,valid_points] = extractFeatures(im,points);
+                    f1 = valid_points.Location';
+                    d1 = features';
+%                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 elseif(featureType == 1)
                     %check if we already saved the cone locations
                     [~,BaseName,ext]=fileparts(imageFilename{m,n});
@@ -98,7 +106,7 @@ for n=1:N
                         end
                     end
                 else
-                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
+                    %[f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
                 end
                 [f1_crop, d1_crop] = filterSiftFeaturesByROI(im, f1, d1, ROICropPct);
                 f_all{m,n} = f1_crop;
