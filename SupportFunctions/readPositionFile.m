@@ -35,8 +35,8 @@ if (device_mode==1)%Multi-modal
             for i=1:size(lut,1)
                 if ~isempty( strfind(inData{1,n}, num2str(lut{i,1})) )
                     ID{n} = lut{i,1};
-                    LocXY(:,n) = cell2mat(lut{i,2:3})';
-                    pixelScale(n) = cell2mat(lut{i,5});
+                    LocXY(:,n) = cell2mat(lut(i,2:3))';
+                    pixelScale(n) = cell2mat(lut(i,5));
                     eyeSide{n} = lut{i,6};
                     break
                 end

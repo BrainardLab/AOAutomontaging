@@ -55,8 +55,8 @@ for n=1:N
                 im = imresize( im2single(imread(char(imageFilename{m,n})) ), pixelScale_n,'bilinear');
                 
                 if(featureType == 0)
-                    points = detectSIFTFeatures(im,NumLayersInOctave=5);
-                    [features,valid_points] = extractFeatures(im,points);
+                    points = detectSIFTFeatures(im(:,:,1),NumLayersInOctave=5);
+                    [features,valid_points] = extractFeatures(im(:,:,1),points);
                     f1p = valid_points.Location';
                     d1p = features';
 %                    [f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
@@ -70,8 +70,8 @@ for n=1:N
                             saveConeLoc(SaveName,'CNNPos','imageSize')
                         end
                 else
-                    points = detectSIFTFeatures(im,NumLayersInOctave=5);
-                    [features,valid_points] = extractFeatures(im,points);
+                    points = detectSIFTFeatures(im(:,:,1),NumLayersInOctave=5);
+                    [features,valid_points] = extractFeatures(im(:,:,1),points);
                     f1p = valid_points.Location';
                     d1p = features';
                     %[f1,d1] = vl_sift(im(:,:,1),'Levels',SiftLevel);
