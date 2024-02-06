@@ -11,7 +11,8 @@ errorFlag = 0;
 
 if (device_mode==1)%Multi-modal
     
-    if strcmp(posFileLoc(end-3:end), '.csv')
+    [filepath,name,ext] = fileparts(posFileLoc);
+    if (~strcmp(ext, '.xls') &&  ~strcmp(ext, '.xlsx'))
         lut = readtable(posFileLoc);
         headers = lut.Properties.VariableNames;
         version = headers{1};
